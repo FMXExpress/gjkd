@@ -95,7 +95,7 @@ class RigidSys
 		}
 
 		foreach(inout Vector v; Bsimplex) { v.x = 0; v.y = 0; }		// Clear Simplex
-		checkForCollisions();
+		collisionState = checkForCollisions();
 		minkDiff();
 
 	}
