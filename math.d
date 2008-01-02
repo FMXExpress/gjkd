@@ -1,4 +1,4 @@
-/* gjkD - An implementation of the Gilbert-Johnson-Keerthi algorithm 
+/* gjkD - An implementation of the Gilbert-Johnson-Keerthi algorithm
  * for the collision detection of convex objects, written in D.
  * Copyright (C) 2007-2008 Mason A. Green (mason.green@gmail.com)
  *
@@ -18,7 +18,6 @@
  * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
 module math;
 
 import tango.math.Math;
@@ -97,5 +96,4 @@ struct Vector
 	{
 		return sqrt(x*x + y*y + z*z);
 	}
-	 
 }

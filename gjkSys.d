@@ -1,4 +1,4 @@
-/* gjkD - An implementation of the Gilbert-Johnson-Keerthi algorithm 
+/* gjkD - An implementation of the Gilbert-Johnson-Keerthi algorithm
  * for the collision detection of convex objects, written in D.
  * Copyright (C) 2007-2008 Mason A. Green (mason.green@gmail.com)
  *
@@ -18,21 +18,15 @@
  * along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
 module gjkSys;
 
 import tango.io.Stdout;
-import tango.math.Random;
 import tango.math.Math;
-import tango.util.collection.HashSet;
 import tango.core.Array;
 
 import math;
 import collide;
 import chainHull;
-
-const bool hash = false;		// Utilize Hash table
-const int GRID_SIZE = 16;
 
 const float X = 2.5f;			// X polygon scale factor
 const float Y = 2.5f;			// Y polygon scale factor
@@ -40,7 +34,7 @@ const float Y = 2.5f;			// Y polygon scale factor
 
 class RigidSys
 {
-	RigidBody[] rb; 
+	RigidBody[] rb;
 	Vector[] mink, minkHull;
 	Vector[] Bsimplex;
 	Vector plot;
@@ -52,13 +46,13 @@ class RigidSys
 	float[][] minkSum;
 	float[] x0, xEnd;
 	bool collisionState;
-	
+
 	this(long MAXRB)
 	{
-				
+
 		rb.length = MAXRB;
 		Bsimplex.length = 10;
-				
+
 		rb[0] = new RigidBody(shape1);
 		rb[1] = new RigidBody(shape2);
 
@@ -75,36 +69,37 @@ class RigidSys
 		rb[1].vel.x = 5f;
 		rb[1].vel.y = 5f;
 
-	       	x0.length = stateSize * rb.length;
-		xEnd.length = stateSize * rb.length;		
+	    x0.length = stateSize * rb.length;
+		xEnd.length = stateSize * rb.length;
 		bodiesToArray(xEnd);
-				
+
 	}
-	
-	void update()								// Update Universe
+
+	void update()								                                // Update Universe
 	{
 		x0 = xEnd;
-		
+
 		rk4(0.01f);
 		arrayToBodies(xEnd);
 
 		foreach(inout RigidBody b; rb)
 		{
-			if(abs(b.omega.z) > .2f) b.omega.z *= .75f;
+			if(abs(b.omega.z) > .2f) b.omega.z *= .75f;                        // Limit rotation speed
 			b.update();
 		}
 
-		foreach(inout Vector v; Bsimplex) { v.x = 0; v.y = 0; }		// Clear Simplex
-		collisionState = checkForCollisions();
+		foreach(inout Vector v; Bsimplex) { v.x = 0; v.y = 0; }		          // Clear Simplex
+		// Narrow Phase Collision Detection
+		collisionState = gjk(rb[0].vertex[0], rb[1].vertex[0], Bsimplex, plot, simpIndex);
 		minkDiff();
 
 	}
-	
-	void spawn(int hull)							// Change Polygon Shape
+
+	void spawn(int hull)							                            // Change Polygon Shape
 	{
-		if(hull == 1) 
+		if(hull == 1)
 		{
-		
+
 			rb[0].shape(shape1);
 			minkSum = new float[][]((shape1+2)*(shape2+2),2);
 			mink.length = minkHull.length = (shape1+2)*(shape2+2);
@@ -115,11 +110,10 @@ class RigidSys
 			minkSum = new float[][]((shape1+2)*(shape2+2),2);
 			mink.length = minkHull.length = (shape1+2)*(shape2+2);
 		}
-
 	}
 
-	void minkDiff()								// Calculate Minkowski Difference
-	{	
+	void minkDiff()								                    // Calculate Minkowski Difference for display
+	{
 		int i = 0;
 		for(int j; j < rb[0].vertex[0].length; j++)
 			for(int k; k < rb[1].vertex[0].length; k++)
@@ -127,9 +121,9 @@ class RigidSys
 					minkSum[i][0] = rb[0].vertex[0][j].x - rb[1].vertex[0][k].x;
 					minkSum[i++][1] = rb[0].vertex[0][j].y - rb[1].vertex[0][k].y;
 				}
-				
+
 		sort(minkSum);
-		
+
 		i = 0;
 		foreach(inout Vector m; mink)
 		{
@@ -139,10 +133,10 @@ class RigidSys
 
 		foreach(inout Vector v; minkHull) { v.x = 0; v.y = 0; }		// Clear Vector
 
-		chainHull_2D(mink,minkHull);					// Find Minkowski Hull
+		chainHull_2D(mink,minkHull);					            // Find Minkowski Hull
 	}
-	
-	void rk4(float h)				// Runge Kutta 4th order ODE Solver
+
+	void rk4(float h)				        // Runge Kutta 4th order ODE Solver
 	{
 		float[] inp, k1, k2, k3, k4;
 		float hh, h6;
@@ -168,7 +162,7 @@ class RigidSys
 	void dxdt(float t, float[] x, inout float[] xdot)
 	{
 		arrayToBodies(x);
-		
+
 		foreach(int i, RigidBody b; rb)
 		{
 			ddtStateToArray(rb[i], xdot, i*stateSize);
@@ -193,7 +187,7 @@ class RigidSys
 		xdot[i++] = b.torque.y;
 		xdot[i++] = b.torque.z;
 	}
-	
+
 	void bodiesToArray(inout float[] x)
 	{
 		int i = 0;
@@ -239,120 +233,6 @@ class RigidSys
 			b.L.z = x[i++];
 		}
 	}
-
-	void computeForceAndTorque(float t, inout RigidBody b)
-	{
-		auto rand = new Random;
-	 
-		b.force.x = rand.next(10);
-		b.force.y = rand.next(10);
-		b.force.z = rand.next(10);
-	
-		b.torque.x = rand.next(100);
-		b.torque.y = rand.next(100);
-		b.torque.z = rand.next(100); 
-	}
-
-	bool checkForCollisions()
-	{
-			
-		bool collide = false;
-	
-		if(hash == true)							// Hash Table for Collisions
-		{
-			alias HashSet!(int) set;
-			set[GRID_SIZE] hashTable;
-	
-			for(int i = 0; i < GRID_SIZE; i++)
-				hashTable[i] = new set;
-
-			foreach(int i, RigidBody b; rb)
-			{
-			
-				if(b.pos.x > 100) b.vel.x -= 5;
-					else if(b.pos.x < 0) b.vel.x += 5;
-
-				if(b.pos.y > 100) b.vel.y -= 5;
-					else if(b.pos.y < 0) b.vel.y += 5;
-		
-				float aabb4 = floor((b.pos.x + X) * 0.04) + floor((b.pos.y + Y) * 0.04) * 4;
-				float aabb1 = floor((b.pos.x - X) * 0.04) + floor((b.pos.y - Y) * 0.04) * 4;
-			
-				if((aabb4 < GRID_SIZE) && (aabb1 >= 0))
-				{
-
-					if(aabb4 == aabb1)				// Single Cell
-					{
-						hashTable[rndint(aabb4)].add(i);
-					}
-					else if(aabb4 == aabb1+1)			// Two Cells, adjacent
-					{
-						hashTable[rndint(aabb1)].add(i);
-						hashTable[rndint(aabb4)].add(i);
-					}
-					else if(aabb4 == aabb1+4)			// Two Cells, over & under 
-					{
-						hashTable[rndint(aabb1)].add(i);
-						hashTable[rndint(aabb4)].add(i);
-					}
-					else						// Four cells
-					{
-						float aabb3 = floor((b.pos.x - X) * 0.04) + floor((b.pos.y + Y) * 0.04) * 4;
-						float aabb2 = floor((b.pos.x + X) * 0.04) + floor((b.pos.y - Y) * 0.04) * 4;
-
-						hashTable[rndint(aabb1)].add(i);
-						hashTable[rndint(aabb2)].add(i);
-						hashTable[rndint(aabb3)].add(i);
-						hashTable[rndint(aabb4)].add(i);
-					}
-				}
-
-			}
-
-
-			for(int i = 0; i < hashTable.length; i++)
-			{
-				if(hashTable[i].size() > 1)
-				{
-
-					int[] t;
-					int x = 0;
-				
-					t.length = hashTable[i].size();
-				
-					foreach(value; hashTable[i]) t[x++] = value;
-									
-					for(int j = 0; j < t.length-1; j++)
-						for(int k=j+1; k < t.length; k++) collide = testAABB(t[j],t[k]);			
-				}
-			}
-		}
-		else
-		{
-			foreach(int i, RigidBody b; rb)
-			{
-				if(b.vel.x > 50) b.vel.x = 50f;
-				if(b.vel.y > 50) b.vel.y = 50f;
-
-				if(b.pos.x > 100) b.vel.x -= 5f;
-				else if(b.pos.x < 0) b.vel.x += 5f;
-
-				if(b.pos.y > 100) b.vel.y -= 5f;
-				else if(b.pos.y < 0) b.vel.y += 5f;
-			}
-
-			for(int j = 0; j < rb.length-1; j++)
-				for(int k=j+1; k < rb.length; k++) collide = testAABB(j,k);
-		}
-
-		return collide;
-	}
-
-	bool testAABB(int b1, int b2)
-	{
-		return gjk(rb[b1].vertex[0], rb[b2].vertex[0], Bsimplex, plot, simpIndex);
-	}
-
 }
 
 class RigidBody
@@ -361,7 +241,7 @@ class RigidBody
 	float mass;
 	float iBody;
 	float iBodyInv;
-	
+
 	Vector[][] V;
 	Vector[][] vertex;
 
@@ -385,7 +265,7 @@ class RigidBody
 
 	this(int s)
 	{
-		shape(s);		
+		shape(s);
 	}
 
 	void shape(int hull)
@@ -398,7 +278,7 @@ class RigidBody
 				V = new Vector[][](1,3);
 
 				V[0][0].x = 0f;
-				V[0][0].y = Y; 
+				V[0][0].y = Y;
 				V[0][1].x = X;
 				V[0][1].y = -Y;
 				V[0][2].x = -X;
@@ -411,7 +291,7 @@ class RigidBody
 				V = new Vector[][](1,4);
 
 				V[0][0].x = X;
-				V[0][0].y = Y; 
+				V[0][0].y = Y;
 				V[0][1].x = X;
 				V[0][1].y = -Y;
 				V[0][2].x = -X;
@@ -427,7 +307,7 @@ class RigidBody
 				V = new Vector[][](1,5);
 
 				V[0][0].x = X;
-				V[0][0].y = Y; 
+				V[0][0].y = Y;
 				V[0][1].x = 2f*X;
 				V[0][1].y = 0f;
 				V[0][2].x = 0f;
@@ -444,7 +324,7 @@ class RigidBody
 				V = new Vector[][](1,6);
 
 				V[0][0].x = X;
-				V[0][0].y = Y; 
+				V[0][0].y = Y;
 				V[0][1].x = 1.5f*X;
 				V[0][1].y = 0f;
 				V[0][2].x = 0.5f*X;
@@ -462,23 +342,19 @@ class RigidBody
 
 	void update()						// Update coordinates
 	{
-
 		degrees = q.z * 180f/PI;			// convert Polar rotation to cartesian coordinates
-		
 
 		while(degrees > 360f) degrees -= 360f;
 		while(degrees < -360f) degrees += 360f;
- 
+
 		real cd = cos(degrees);
 		real sd = sin(degrees);
-	
+
 		for(int i = 0; i < V[0].length; i++)
 		{
 			vertex[0][i].x = pos.x + (V[0][i].x*cd + V[0][i].y*sd);
 			vertex[0][i].y = pos.y + (-V[0][i].x*sd + V[0][i].y*cd);
 		}
-		
 	}
-
 }
 
