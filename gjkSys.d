@@ -1,6 +1,6 @@
 /* gjkD - An implementation of the Gilbert-Johnson-Keerthi algorithm
  * for the collision detection of convex objects, written in D.
- * Copyright (C) 2007-2008 Mason A. Green (mason.green@gmail.com)
+ * Copyright (C) 2007-2008 Mason A. Green
  *
  * This file is part of gjkD
  *
