@@ -20,16 +20,18 @@
  */
 module collision;
 
+import tango.util.collection.ArraySeq;
+
 import math;
-import tango.io.Stdout;
 
 bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, inout int simpIndex)
 {
-	Vector[] simplex;
-    Vector maxD;
+	ArraySeq!(Vector) simplex;
+	simplex = new ArraySeq!(Vector);
 
-    simplex.length = 6;                    // There can be as many as six, three on each polytope.
-	simplex[0] = maxD = p1[0] - p2[2];
+    Vector maxD = p1[0] - p2[2];
+    simplex.append(maxD);
+
 	float dMag = maxD.magnitude;
     plot = maxD;
 
@@ -37,32 +39,32 @@ bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, i
 
 	bool collide = false;
 	int i = 0;
-	while(i<simplex.length+1)
-	{
-		simplex[i+1] = Bsimplex[i+1] = support(p1, p2, maxD.neg());
 
-		if((dMag*dMag - simplex[i+1]*maxD) < 1) return false;
+	while(i < 6)  // There can be as many as six, three on each polytope.
+	{
+        simplex.append(support(p1, p2, maxD.neg()));
+
+        Bsimplex[i+1] = simplex.tail();
+
+		if((dMag*dMag - maxD*simplex.tail()) < 1) return false;
 
 		if(i == 0)  							                        // Line Test
 		{
-
-			Vector ab = simplex[1] - simplex[0];
+			Vector ab = simplex.get(1) - simplex.get(0);
 			Vector origin;
-			float t = ((origin-simplex[0]) * ab);
+            float t = ((origin-simplex.get(0)) * ab);
 			float denom = ab * ab;
-
 			if(t >= denom)
 			{
-				maxD = simplex[1];
+				maxD = simplex.get(1);
 			}
 			else
 			{
 				t /= denom;
-				maxD = simplex[0] + ab*t;
+				maxD = simplex.get(0) + ab*t;
 			}
-
 		}
-		else	maxD = closestPointTriangle(simplex, i+1, collide); 	// Triangle Test
+		else maxD = closestPointTriangle(simplex, i+1, collide); 	    // Triangle Test
 
 		dMag = maxD.magnitude;                                          // Seperation distance between polytopes
 		plot = maxD;
@@ -72,21 +74,21 @@ bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, i
 	return false;
 }
 
-Vector closestPointTriangle(Vector[] simplex, int i, inout bool collide)
+Vector closestPointTriangle(inout ArraySeq!(Vector) simplex, int i, inout bool collide)
 {
 	Vector origin;
-	Vector ab = simplex[i-1] - simplex[i];
-	Vector ac = simplex[i-2] - simplex[i];
-	Vector ao = origin - simplex[i];
+	Vector ab = simplex.get(i-1) - simplex.get(i);
+	Vector ac = simplex.get(i-2) - simplex.get(i);
+	Vector ao = origin - simplex.get(i);
 
 	float d1 = ab*ao;
 	float d2 = ac*ao;
 	if(d1 <= 0 && d2 <= 0)
 	{
-		return simplex[i]; 			        // Origin in vertex region outside A
+		return simplex.get(i); 			    // Origin in vertex region outside A
 	}
 
-	Vector bo = origin - simplex[i-1];
+	Vector bo = origin - simplex.get(i-1);
 	float d3 = ab*bo;
 	float d4 = ac*bo;
 
@@ -94,27 +96,27 @@ Vector closestPointTriangle(Vector[] simplex, int i, inout bool collide)
 	if(vc <= 0 && d1 >= 0 && d3 <= 0)		// Origin in edge region outside AB
 	{
 		float v = d1/(d1 - d3);
-		return (simplex[i] + ab*v);
+		return (simplex.get(i) + ab*v);
 	}
 
-	Vector co = origin - simplex[i-2];
+	Vector co = origin - simplex.get(i-2);
 	float d5 = ab * co;
 	float d6 = ac * co;
 	float vb = d5*d2 - d1*d6;
 	if(vb <= 0 && d2 >= 0 && d6 <= 0)		// Origin in edge region ouside AC
 	{
 		float w = d2/(d2-d6);
-		return simplex[i] + ac*w;
+		return (simplex.get(i) + ac*w);
 	}
 
-	collide = true;                         // Origin inside face region. Collision!!!
+    collide = true;                         // Origin inside face region. Collision!!!
 
-	float va = d3*d6 - d5*d4;
+    float va = d3*d6 - d5*d4;
 	float denom = 1 / (va + vb + vc);
 	float v = vb * denom;
 	float w = vc * denom;
 
-	return simplex[i] + ab*v + ac*w;
+	return (simplex.get(i) + ab*v + ac*w);
 }
 
 Vector support(Vector[] p1, Vector[] p2, Vector maxD)
@@ -139,5 +141,3 @@ Vector support(Vector[] p1, Vector[] p2, Vector maxD)
 	minkowskiSum = p1Simp - p2Simp;
 	return minkowskiSum;
 }
-
-

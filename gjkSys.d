@@ -20,7 +20,6 @@
  */
 module gjkSys;
 
-import tango.io.Stdout;
 import tango.math.Math;
 import tango.core.Array;
 
@@ -66,8 +65,8 @@ class RigidSys
 
 		rb[1].pos.x = 45f;
 		rb[1].pos.y = 30f;
-		rb[1].vel.x = 5f;
-		rb[1].vel.y = 5f;
+		rb[1].vel.x = -5f;
+		rb[1].vel.y = -5f;
 
 	    x0.length = stateSize * rb.length;
 		xEnd.length = stateSize * rb.length;
