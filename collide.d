@@ -28,8 +28,8 @@ bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, i
 	Vector[] simplex;
     Vector maxD;
 
-    simplex.length = p1.length*p2.length;  // Large simplex to be on the memory safe side. 3 should
-	simplex[0] = maxD = p1[0] - p2[2];     // ordinarily suffice.
+    simplex.length = 6;                    // There can be as many as six, three on each polytope.
+	simplex[0] = maxD = p1[0] - p2[2];
 	float dMag = maxD.magnitude;
     plot = maxD;
 
@@ -37,7 +37,7 @@ bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, i
 
 	bool collide = false;
 	int i = 0;
-	while(true)
+	while(i<simplex.length+1)
 	{
 		simplex[i+1] = Bsimplex[i+1] = support(p1, p2, maxD.neg());
 
@@ -64,10 +64,10 @@ bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, i
 		}
 		else	maxD = closestPointTriangle(simplex, i+1, collide); 	// Triangle Test
 
-		dMag = maxD.magnitude;
-		plot = maxD;              // Closest point between polygons. Find actual distance between polygons by taking magnitude
+		dMag = maxD.magnitude;                                          // Seperation distance between polytopes
+		plot = maxD;
 		simpIndex = ++i;
-		if((dMag <= 0.1) || (collide == true) ) return true;
+		if((dMag <= 0.3) || (collide == true) ) return true;
 	}
 	return false;
 }

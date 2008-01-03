@@ -28,11 +28,11 @@ struct Vector
 
 	static Vector opCall(float ax, float ay, float az)
  	{
- 	        Vector u;
- 	        u.x = ax;
- 	        u.y = ay;
-		u.z = az;
- 	        return u;
+        Vector u;
+        u.x = ax;
+        u.y = ay;
+        u.z = az;
+        return u;
 	}
 
 	void normalize()
@@ -44,9 +44,9 @@ struct Vector
 	}
 
 	Vector opAdd(Vector u)
-        {
-            	return Vector(x + u.x, y + u.y, z + u.z);
-        }
+    {
+        return Vector(x + u.x, y + u.y, z + u.z);
+    }
 
 	void opAddAssign(Vector u)
 	{

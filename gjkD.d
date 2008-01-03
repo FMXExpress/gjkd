@@ -45,10 +45,10 @@ static this()
 {
 	DerelictGL.load();		// Load Derelict libraries
 	DerelictGLU.load();
-    	DerelictSDL.load();
+    DerelictSDL.load();
 
-    	if (SDL_Init(SDL_INIT_VIDEO) < 0)
-        	throw new Exception("Failed to initialize SDL: " ~ getSDLError());
+    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+        throw new Exception("Failed to initialize SDL: " ~ getSDLError());
 }
 
 // Module destructor

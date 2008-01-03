@@ -92,7 +92,6 @@ class RigidSys
 		// Narrow Phase Collision Detection
 		collisionState = gjk(rb[0].vertex[0], rb[1].vertex[0], Bsimplex, plot, simpIndex);
 		minkDiff();
-
 	}
 
 	void spawn(int hull)							                            // Change Polygon Shape
@@ -252,9 +251,9 @@ class RigidBody
 	Vector L;					// angular momentum
 
 	// Derived quantities (auxiliary variables)
-	Vector iInv;					// Inverse of current I
+	Vector iInv;				// Inverse of current I
 	Vector vel;					// linear velocity
-	Vector omega;					// angular velocity
+	Vector omega;				// angular velocity
 
 	// Computed quantities
 	Vector force;
@@ -340,7 +339,7 @@ class RigidBody
 		}
 	}
 
-	void update()						// Update coordinates
+	void update()						    // Update coordinates
 	{
 		degrees = q.z * 180f/PI;			// convert Polar rotation to cartesian coordinates
 
