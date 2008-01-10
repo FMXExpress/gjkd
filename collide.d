@@ -39,13 +39,20 @@ bool gjk(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) simplex, inout Vector
 	{
         simplex.append(support(p1, p2, rb1Simplex, rb2Simplex, maxD.neg()));
 
-        if((maxD*maxD - maxD*simplex.tail()) < EPSILON)
+        if((maxD*maxD - maxD*simplex.tail()) < 1)
 		{
             rb1Simplex.removeTail();    // Remove extra vertex in Simplex
             rb2Simplex.removeTail();
             simplex.removeTail();
             plot = maxD;
-            return false;
+
+            dMag = maxD.magnitude;
+            if(dMag <= 10 || collide == true)
+            {
+                plot = maxD;
+                return true;
+            }
+            else return false;
 		}
 
 		if(simplex.size() == 2)  							                        // Line Test
@@ -66,14 +73,9 @@ bool gjk(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) simplex, inout Vector
                 edgeFlag = 0;
             }
 		}
-		else { maxD = pointTriangle(simplex, collide, edgeFlag); }	    // Triangle Test
+		else maxD = pointTriangle(simplex, collide, edgeFlag); 	    // Triangle Test
 
-        dMag = maxD.magnitude;
-		if(dMag <= 0.3 || collide == true)
-		{
-		    plot = maxD;
-            return true;
-		}
+        if(collide == true) break;
 	}
 	return false;
 }
