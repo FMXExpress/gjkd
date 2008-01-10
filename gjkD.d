@@ -29,7 +29,7 @@ import derelict.sdl.sdl;
 import gjkSys;
 import math;
 
-const char[] WINDOW_TITLE = "gjkD v0.2";
+const char[] WINDOW_TITLE = "gjkD v0.3";
 
 //The screen attributes
 const int SCREEN_WIDTH = 600;
