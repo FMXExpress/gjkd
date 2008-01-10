@@ -22,6 +22,7 @@ module gjkSys;
 
 import tango.math.Math;
 import tango.core.Array;
+import tango.util.collection.ArraySeq;
 
 import math;
 import collide;
@@ -35,10 +36,11 @@ class RigidSys
 {
 	RigidBody[] rb;
 	Vector[] mink, minkHull;
-	Vector[] Bsimplex;
-	Vector plot;
+    ArraySeq!(Vector) Bsimplex;
 
-	int simpIndex = 0;
+	Vector plot;
+    Vector cp1,cp2;
+
 	int shape1 = 1;			// Polygon #1 shape
 	int shape2 = 1;			// Polygon #2 shape
 	int stateSize = 12;
@@ -50,7 +52,7 @@ class RigidSys
 	{
 
 		rb.length = MAXRB;
-		Bsimplex.length = 10;
+		Bsimplex = new ArraySeq!(Vector);
 
 		rb[0] = new RigidBody(shape1);
 		rb[1] = new RigidBody(shape2);
@@ -71,7 +73,6 @@ class RigidSys
 	    x0.length = stateSize * rb.length;
 		xEnd.length = stateSize * rb.length;
 		bodiesToArray(xEnd);
-
 	}
 
 	void update()								                                // Update Universe
@@ -87,9 +88,25 @@ class RigidSys
 			b.update();
 		}
 
-		foreach(inout Vector v; Bsimplex) { v.x = 0; v.y = 0; }		          // Clear Simplex
 		// Narrow Phase Collision Detection
-		collisionState = gjk(rb[0].vertex[0], rb[1].vertex[0], Bsimplex, plot, simpIndex);
+
+		auto rb1Simplex = new ArraySeq!(Vector);
+        auto rb2Simplex = new ArraySeq!(Vector);
+        auto ec1 = new ArraySeq!(Vector);
+        auto ec2 = new ArraySeq!(Vector);
+        Bsimplex.clear();
+
+        int edgeFlag;
+
+		collisionState = gjk(rb[0].vertex[0], rb[1].vertex[0], Bsimplex, plot, rb1Simplex, rb2Simplex, edgeFlag);
+
+		ec1.append(rb1Simplex.get(edgeFlag));
+        ec1.append(rb1Simplex.tail());
+
+        ec2.append(rb2Simplex.get(edgeFlag));
+        ec2.append(rb2Simplex.tail());
+
+        segmentSegment(ec1.head(), ec1.tail(), ec2.head(), ec2.tail(), cp1, cp2);
 		minkDiff();
 	}
 

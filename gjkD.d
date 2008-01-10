@@ -224,7 +224,7 @@ void drawScene()
 	if(system.collisionState == false) glColor3f(1.0, 1.0, 1.0);	// White - Clear
 	else glColor3f(0, 0, 1);					                    // Blue - Collision
 
-	glBegin(GL_LINE_LOOP);						                    // Draw Minkowski Hull
+	glBegin(GL_LINE_STRIP);						                    // Draw Minkowski Hull
 		int k = 0;
 		foreach(Vector m; system.minkHull)
 			if(m.x != 0 && m.y != 0) { glVertex2d(m.x, m.y); k++;}
@@ -236,8 +236,8 @@ void drawScene()
 
 	glColor3f(1,1,0);						                        // Yellow
 	glBegin(GL_LINE_LOOP);						                    // Draw Simplex
-		for(int j=system.simpIndex;(j>=0)&&(j>system.simpIndex-3);j--)
-			glVertex2d(system.Bsimplex[j].x, system.Bsimplex[j].y);
+		for(int j=0; j < system.Bsimplex.size(); j++)
+			glVertex2d(system.Bsimplex.get(j).x, system.Bsimplex.get(j).y);
 	glEnd();
 
 	glColor3f(1,0,0);						                        // Red
@@ -246,6 +246,18 @@ void drawScene()
 	glBegin(GL_POINTS);						                        // Draw closest point to origin
 		glVertex2d(system.plot.x, system.plot.y);
 	glEnd();
+
+    glLoadIdentity();
+	glFlush();
+
+    glPointSize(10);
+
+    glBegin(GL_POINTS);
+	    glColor3f(1,0,0);						                        // Red
+	    glVertex2d(system.cp1.x, system.cp1.y);
+	    glColor3f(0,1,0);                                               //Green
+	    glVertex2d(system.cp2.x, system.cp2.y);
+    glEnd();
 
 	glFlush();
 }

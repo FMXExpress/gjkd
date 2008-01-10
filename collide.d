@@ -21,16 +21,20 @@
 module collision;
 
 import tango.util.collection.ArraySeq;
+import tango.io.Stdout;
 
 import math;
 
-bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, inout int simpIndex)
+bool gjk(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) Bsimplex, inout Vector plot,
+         inout ArraySeq!(Vector) rb1Simplex, inout ArraySeq!(Vector) rb2Simplex, inout int edgeFlag)
 {
-	ArraySeq!(Vector) simplex;
-	simplex = new ArraySeq!(Vector);
+	rb1Simplex.append(p1[0]);
+	rb2Simplex.append(p2[0]);
+    Vector maxD = rb1Simplex.tail() - rb2Simplex.tail();
 
-    Vector maxD = p1[0] - p2[2];
+	auto simplex = new ArraySeq!(Vector);
     simplex.append(maxD);
+    Bsimplex.append(simplex.tail());
 
 	float dMag = maxD.magnitude;
     plot = maxD;
@@ -38,106 +42,203 @@ bool gjk(Vector[] p1, Vector[] p2, inout Vector[] Bsimplex, inout Vector plot, i
 	foreach(inout Vector v; Bsimplex) v = maxD;
 
 	bool collide = false;
-	int i = 0;
 
-	while(i < 6)  // There can be as many as six, three on each polytope.
+	while(true)  // There can be as many as six, three on each polytope.
 	{
-        simplex.append(support(p1, p2, maxD.neg()));
+        simplex.append(support(p1, p2, rb1Simplex, rb2Simplex, simplex.tail().neg()));
+        Bsimplex.append(simplex.tail());
 
-        Bsimplex[i+1] = simplex.tail();
+		if((dMag*dMag - maxD*simplex.tail()) < 1)
+		{
+            rb1Simplex.removeHead();
+            rb2Simplex.removeHead();
+            simplex.removeHead();
+            break;
+		}
 
-		if((dMag*dMag - maxD*simplex.tail()) < 1) return false;
-
-		if(i == 0)  							                        // Line Test
+		if(simplex.size() == 2)  							                        // Line Test
 		{
 			Vector ab = simplex.get(1) - simplex.get(0);
 			Vector origin;
             float t = ((origin-simplex.get(0)) * ab);
-			float denom = ab * ab;
-			if(t >= denom)
-			{
-				maxD = simplex.get(1);
-			}
-			else
-			{
-				t /= denom;
-				maxD = simplex.get(0) + ab*t;
-			}
+            float denom = ab*ab;
+            if(t >= denom)
+            {
+                maxD = simplex.get(1);
+                edgeFlag = 0;
+            }
+                else
+            {
+                t /= denom;
+                maxD = simplex.get(0) + ab*t;
+                edgeFlag = 1;
+            }
 		}
-		else maxD = closestPointTriangle(simplex, i+1, collide); 	    // Triangle Test
+		else maxD = pointTriangle(simplex, collide, edgeFlag);	    // Triangle Test
 
-		dMag = maxD.magnitude;                                          // Seperation distance between polytopes
-		plot = maxD;
-		simpIndex = ++i;
-		if((dMag <= 0.3) || (collide == true) ) return true;
+        dMag = maxD.magnitude;
+        plot = maxD;
+		if(collide == true) return true;
+		if(dMag <= 0.1) return true;
 	}
 	return false;
 }
 
-Vector closestPointTriangle(inout ArraySeq!(Vector) simplex, int i, inout bool collide)
+private Vector pointTriangle(inout ArraySeq!(Vector) simplex, inout bool collide, inout int edgeFlag)
 {
 	Vector origin;
-	Vector ab = simplex.get(i-1) - simplex.get(i);
-	Vector ac = simplex.get(i-2) - simplex.get(i);
-	Vector ao = origin - simplex.get(i);
+	int i = simplex.size()-1;
+
+	Vector ab = simplex.get(i-1) - simplex.tail();
+	Vector ac = simplex.get(i-2) - simplex.tail();;
+	Vector ao = origin - simplex.tail();
 
 	float d1 = ab*ao;
 	float d2 = ac*ao;
-	if(d1 <= 0 && d2 <= 0)
+	if(d1 <= 0.0f && d2 <= 0.0f)
 	{
-		return simplex.get(i); 			    // Origin in vertex region outside A
+	    //edgeFlag = i;
+	    return simplex.tail();			             // Origin in vertex region outside A
 	}
 
-	Vector bo = origin - simplex.get(i-1);
-	float d3 = ab*bo;
+    Vector bo = origin - simplex.get(i-1);           // Origin in vertex region outside B
+ 	float d3 = ab*bo;
 	float d4 = ac*bo;
-
 	float vc = d1*d4 - d3*d2;
-	if(vc <= 0 && d1 >= 0 && d3 <= 0)		// Origin in edge region outside AB
+	if(vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)		// Origin in edge region outside AB
 	{
+	    edgeFlag = i-1;
 		float v = d1/(d1 - d3);
-		return (simplex.get(i) + ab*v);
+		return (simplex.tail() + ab*v);
 	}
 
-	Vector co = origin - simplex.get(i-2);
-	float d5 = ab * co;
-	float d6 = ac * co;
+    Vector co = origin - simplex.get(i-2);
+    float d5 = ab*co;
+    float d6 = ac*co;
 	float vb = d5*d2 - d1*d6;
-	if(vb <= 0 && d2 >= 0 && d6 <= 0)		// Origin in edge region ouside AC
+	if(vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f)	        // Origin in edge region ouside AC
 	{
 		float w = d2/(d2-d6);
-		return (simplex.get(i) + ac*w);
+        edgeFlag = i-2;
+		return (simplex.tail() + ac*w);
 	}
 
-    collide = true;                         // Origin inside face region. Collision!!!
+    collide = true;                                 // Origin inside face region. Penetration!!!
 
     float va = d3*d6 - d5*d4;
-	float denom = 1 / (va + vb + vc);
+	float denom = 1f / (va + vb + vc);
 	float v = vb * denom;
 	float w = vc * denom;
 
-	return (simplex.get(i) + ab*v + ac*w);
+	return (simplex.tail() + ab*v + ac*w);
 }
 
-Vector support(Vector[] p1, Vector[] p2, Vector maxD)
+private Vector support(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) rb1Simplex, inout ArraySeq!(Vector) rb2Simplex, Vector maxD)
 {
-	Vector minkowskiSum;
-	Vector p1Simp = p1[0];
-	Vector p2Simp = p2[0];
+	Vector p1Simp = rb1Simplex.tail();
+	Vector p2Simp = rb2Simplex.tail();
 
 	maxD.normalize();
 
 	// To find extreme vertexes I employ a brute force method.  This is sufficient for small 2D polygons.
 	// Dobkin Kirkpatrick (DK), BSP, or hill climbing algorithms should be investigated for larger polygons and/or 3D.
 
-	for(int i = 1; i < p1.length; i++)
+ 	for(int i = 0; i < p1.length; i++)
 		if(maxD*p1[i] > maxD*p1Simp) p1Simp = p1[i];
 
 	maxD = maxD*-1;
 
-	for(int i = 1; i < p2.length; i++)
+	for(int i = 0; i < p2.length; i++)
 		if(maxD*p2[i] > maxD*p2Simp) p2Simp = p2[i];
 
-	minkowskiSum = p1Simp - p2Simp;
+    rb1Simplex.append(p1Simp);              // Maintain a list for each polytope
+    rb2Simplex.append(p2Simp);
+
+	Vector minkowskiSum = p1Simp - p2Simp;
 	return minkowskiSum;
+}
+
+void segmentSegment(Vector p1, Vector q1, Vector p2, Vector q2, inout Vector c1, inout Vector c2)
+{
+    Vector d1 = q1 - p1;
+    Vector d2 = q2 - p2;
+    Vector r = p1 - p2;
+    float a = d1*d1;
+    float e = d2*d2;
+    float f = d2*r;
+    float s, t;
+
+    // Check if either or both segments degenerate into a vertex
+    if (a <= EPSILON && e <= EPSILON)                           // Vertex-Vertex
+    {
+        // Both segments are a vertex
+        s = t = 0.0f;
+        c1 = p1;
+        c2 = p2;
+        return;
+    }
+
+    if (a <= EPSILON)                                           // Vertex-Edge
+    {
+        // First segment is a vertex
+        s = 0.0f;
+        t = f / e; // s = 0 => t = (b*s + f) / e = f / e
+        t = clip(t, 0.0f, 1.0f);
+    }
+    else
+    {
+        float c = d1*r;
+        if (e <= EPSILON)                                       // Vertex-Edge
+        {
+            // Second segment is a vertex
+            t = 0.0f;
+            s = clip(-c / a, 0.0f, 1.0f); // t = 0 => s = (b*t - c) / a = -c / a
+        }
+        else                                                    // Edge-Edge
+        {
+            // The general case
+            float b = d1*d2;
+            float denom = a*e-b*b;
+            c = d1*r;
+
+            if (denom != 0.0f)                                  // Segments not parallel
+            {
+                s = clip((b*f - c*e) / denom, 0.0f, 1.0f);
+            }
+            else                                                // Segments paralllel
+            {
+                s = 0.0f;
+            }
+
+            t = (b*s + f) / e;
+
+            float tnm = b*s + f;
+            if (tnm < 0.0f)
+            {
+                t = 0.0f;
+                s = clip(-c / a, 0.0f, 1.0f);
+            }
+            else if (tnm > e)
+            {
+                t = 1.0f;
+                s = clip((b - c) / a, 0.0f, 1.0f);
+            }
+            else
+            {
+                t = tnm / e;
+            }
+        }
+    }
+
+    c1 = p1 + (d1 * s);
+    c2 = p2 + (d2 * t);
+
+    return;
+}
+
+private float clip(float n, float min, float max)
+{
+    if (n < min) return min;
+    if (n > max) return max;
+    return n;
 }

@@ -22,6 +22,8 @@ module math;
 
 import tango.math.Math;
 
+const EPSILON = 0.00008f;
+
 struct Vector
 {
 	float x = 0f, y = 0f, z = 0f;
