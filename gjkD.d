@@ -198,10 +198,12 @@ void drawScene()
 	glLineWidth(2);
 
 	glBegin(GL_LINES);						                        // Draw center Bullseye
+	{
 		glVertex2d(50,55);
 		glVertex2d(50,45);
 		glVertex2d(45,50);
 		glVertex2d(55,50);
+	}
 	glEnd();
 
 	glColor3f(1,0,0);						                        // Red
@@ -211,8 +213,10 @@ void drawScene()
 		if(i == 1) glColor3f(0,1,0);				                // Green
 
 		glBegin(GL_LINE_LOOP);					                    // Draw Polygon
+		{
 			for(int j; j < b.V[0].length; j++)
 				glVertex2d(b.vertex[0][j].x, b.vertex[0][j].y);
+		}
 		glEnd();
 
 		glLoadIdentity();
@@ -225,9 +229,11 @@ void drawScene()
 	else glColor3f(0, 0, 1);					                    // Blue - Collision
 
 	glBegin(GL_LINE_STRIP);						                    // Draw Minkowski Hull
+	{
 		int k = 0;
 		foreach(Vector m; system.minkHull)
 			if(m.x != 0 && m.y != 0) { glVertex2d(m.x, m.y); k++;}
+	}
 	glEnd();
 
 	glLoadIdentity();
@@ -235,16 +241,23 @@ void drawScene()
 	glTranslatef(50,50,0);
 
 	glColor3f(1,1,0);						                        // Yellow
+
+	while(system.simplex.size() > 3) system.simplex.removeHead();   // Display final simplex
+
 	glBegin(GL_LINE_LOOP);						                    // Draw Simplex
-		for(int j=0; j < system.Bsimplex.size(); j++)
-			glVertex2d(system.Bsimplex.get(j).x, system.Bsimplex.get(j).y);
+	{
+		for(int j=0; j < system.simplex.size(); j++)
+			glVertex2d(system.simplex.get(j).x, system.simplex.get(j).y);
+	}
 	glEnd();
 
 	glColor3f(1,0,0);						                        // Red
 	glPointSize(6);
 
 	glBegin(GL_POINTS);						                        // Draw closest point to origin
+	{
 		glVertex2d(system.plot.x, system.plot.y);
+	}
 	glEnd();
 
     glLoadIdentity();
@@ -252,12 +265,17 @@ void drawScene()
 
     glPointSize(10);
 
-    glBegin(GL_POINTS);
-	    glColor3f(1,0,0);						                        // Red
-	    glVertex2d(system.cp1.x, system.cp1.y);
-	    glColor3f(0,1,0);                                               //Green
-	    glVertex2d(system.cp2.x, system.cp2.y);
-    glEnd();
+    if(system.collisionState == false)
+    {
+        glBegin(GL_POINTS);
+        {
+            glColor3f(1,0,0);						                        // Red
+            glVertex2d(system.cp1.x, system.cp1.y);
+            glColor3f(0,1,0);                                               //Green
+            glVertex2d(system.cp2.x, system.cp2.y);
+        }
+        glEnd();
+    }
 
 	glFlush();
 }

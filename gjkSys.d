@@ -36,7 +36,7 @@ class RigidSys
 {
 	RigidBody[] rb;
 	Vector[] mink, minkHull;
-    ArraySeq!(Vector) Bsimplex;
+    ArraySeq!(Vector) simplex;
 
 	Vector plot;
     Vector cp1,cp2;
@@ -52,7 +52,7 @@ class RigidSys
 	{
 
 		rb.length = MAXRB;
-		Bsimplex = new ArraySeq!(Vector);
+		simplex = new ArraySeq!(Vector);
 
 		rb[0] = new RigidBody(shape1);
 		rb[1] = new RigidBody(shape2);
@@ -94,11 +94,11 @@ class RigidSys
         auto rb2Simplex = new ArraySeq!(Vector);
         auto ec1 = new ArraySeq!(Vector);
         auto ec2 = new ArraySeq!(Vector);
-        Bsimplex.clear();
+        simplex.clear();
 
-        int edgeFlag;
+        int edgeFlag = 0;       // Tracks which edge or vertex the closest points reside.
 
-		collisionState = gjk(rb[0].vertex[0], rb[1].vertex[0], Bsimplex, plot, rb1Simplex, rb2Simplex, edgeFlag);
+		collisionState = gjk(rb[0].vertex[0], rb[1].vertex[0], simplex, plot, rb1Simplex, rb2Simplex, edgeFlag);
 
 		ec1.append(rb1Simplex.get(edgeFlag));
         ec1.append(rb1Simplex.tail());
@@ -107,6 +107,10 @@ class RigidSys
         ec2.append(rb2Simplex.tail());
 
         segmentSegment(ec1.head(), ec1.tail(), ec2.head(), ec2.tail(), cp1, cp2);
+
+        /* cp1 and cp2 represent the closest points on each polytope.  If you normalize the plot variable,
+           you have the contact normal, which sets you up nicely for collision response */
+
 		minkDiff();
 	}
 
