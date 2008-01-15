@@ -22,80 +22,80 @@ module math;
 
 import tango.math.Math;
 
-const EPSILON = 0.00008f;
+const EPSILON = 0.001f;
 
 struct Vector
 {
-	float x = 0f, y = 0f, z = 0f;
+    float x = 0f, y = 0f, z = 0f;
 
-	static Vector opCall(float ax, float ay, float az)
- 	{
+    static Vector opCall(float ax, float ay, float az)
+    {
         Vector u;
         u.x = ax;
         u.y = ay;
         u.z = az;
         return u;
-	}
+    }
 
-	void normalize()
-	{
-		float m = magnitude();
-		x *= 1.0f/m;
-		y *= 1.0f/m;
-		z *= 1.0f/m;
-	}
+    void normalize()
+    {
+        float m = magnitude();
+        x *= 1.0f/m;
+        y *= 1.0f/m;
+        z *= 1.0f/m;
+    }
 
-	Vector opAdd(Vector u)
+    Vector opAdd(Vector u)
     {
         return Vector(x + u.x, y + u.y, z + u.z);
     }
 
-	void opAddAssign(Vector u)
-	{
-		x += u.x;
-		y += u.y;
-		z += u.z;
-	}
+    void opAddAssign(Vector u)
+    {
+        x += u.x;
+        y += u.y;
+        z += u.z;
+    }
 
-	void opSubAssign(Vector u)
-	{
-		x -= u.x;
-		y -= u.y;
-		z -= u.z;
-	}
+    void opSubAssign(Vector u)
+    {
+        x -= u.x;
+        y -= u.y;
+        z -= u.z;
+    }
 
-	Vector opSub(Vector u)
-	{
-		return Vector(x - u.x, y - u.y, z - u.z);
-	}
+    Vector opSub(Vector u)
+    {
+        return Vector(x - u.x, y - u.y, z - u.z);
+    }
 
-	real opMul(Vector u)			// Vector Dot Product
-	{
-		return(x*u.x + y*u.y + z*u.z);
-	}
+    real opMul(Vector u)			// Vector Dot Product
+    {
+        return(x*u.x + y*u.y + z*u.z);
+    }
 
-	Vector opMul(float s)			// Scaler Multiplication
-	{
-		return Vector(x*s, y*s, z*s);
-	}
+    Vector opMul(float s)			// Scaler Multiplication
+    {
+        return Vector(x*s, y*s, z*s);
+    }
 
-	Vector opXor(Vector u)
-	{
-		return Vector(y*u.z - z*u.y, -x*u.z + z*u.x, x*u.y - y*u.x);
-	}
+    Vector opXor(Vector u)
+    {
+        return Vector(y*u.z - z*u.y, -x*u.z + z*u.x, x*u.y - y*u.x);
+    }
 
-	Vector opDiv(float s)
-	{
-		return Vector(x/s, y/s, z/s);
-	}
+    Vector opDiv(float s)
+    {
+        return Vector(x/s, y/s, z/s);
+    }
 
-	Vector neg()
-	{
-		return Vector(-x, -y, -z);
-	}
+    Vector neg()
+    {
+        return Vector(-x, -y, -z);
+    }
 
-	real magnitude()
-	{
-		return sqrt(x*x + y*y + z*z);
-	}
+    real magnitude()
+    {
+        return sqrt(x*x + y*y + z*z);
+    }
 }
