@@ -22,6 +22,7 @@ module collision;
 
 import tango.util.collection.ArraySeq;
 import tango.math.Math;
+import tango.io.Stdout;
 
 import math;
 
@@ -174,6 +175,20 @@ private Entry constructEntry(Vector A, Vector B, Vector p0, Vector q0, Vector p1
 Entry epa(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sAB, inout ArraySeq!(Vector) sA,
            inout ArraySeq!(Vector) sB)
 {
+    if(sAB.size == 2)   // Line
+    {
+        // This only works half the time, when you have a shallow penetration. Need to
+        // optimize this for deep penetrations as well
+        if(sAB.head.magnitude < sAB.tail.magnitude)
+        {
+            return constructEntry(sAB.head, sAB.head, sA.head, sB.head, sA.head, sB.head);
+        }
+        else
+        {
+            return constructEntry(sAB.tail, sAB.tail, sA.tail, sB.tail, sA.tail, sB.tail);
+        }
+    }
+
     // We want the final Simplex containing the origin
     while (sAB.size > 3)
     {

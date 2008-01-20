@@ -112,5 +112,4 @@ struct Entry
     double key;
     double t;
     double s;
-
 }
