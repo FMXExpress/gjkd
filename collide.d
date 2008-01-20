@@ -21,114 +21,84 @@
 module collision;
 
 import tango.util.collection.ArraySeq;
+import tango.math.Math;
 
 import math;
 
-bool gjk(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) simplex, inout Vector plot,
-         inout ArraySeq!(Vector) rb1Simplex, inout ArraySeq!(Vector) rb2Simplex, inout int edgeFlag)
+// The Gilbert-Johnson-Keerthi algorithm
+bool gjk(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sAB, inout ArraySeq!(Vector) sA,
+         inout ArraySeq!(Vector) sB, inout Entry e)
 {
-    rb1Simplex.append(p1[0]);
-    rb2Simplex.append(p2[0]);
-    Vector maxD = rb1Simplex.tail() - rb2Simplex.tail();
-    simplex.append(maxD);
-    float dMag = maxD.magnitude;
+    sA.append(p1[0]);
+    sB.append(p2[0]);
+    sAB.append(sA.tail() - sB.tail());
 
-    bool collide = false;
+    e = constructEntry(sAB.tail, sAB.tail, sA.tail, sB.tail, sA.tail, sB.tail);
 
-    while (true) // There can be as many as six, three on each polytope.
+    bool penetrate;
+    int failsafe;
+
+    while (failsafe++ < 10) // Don't want to get caught in an infinite loop!
     {
-        simplex.append(support(p1, p2, rb1Simplex, rb2Simplex, maxD.neg()));
+        sAB.append(support(p1, p2, sA, sB, e.v.neg));
 
-        if ((maxD*maxD - maxD*simplex.tail()) < EPSILON)
+        if ((e.v*e.v - e.v*sAB.tail()) <= EPSILON) return false;
+
+        // Line Test
+        if (sAB.size == 2)
         {
-            rb1Simplex.removeTail();    // Remove extra vertex in Simplex
-            rb2Simplex.removeTail();
-            simplex.removeTail();
-            plot = maxD;
-
-            dMag = maxD.magnitude;
-            if (dMag <= 0.3 || collide == true)
-            {
-                return true;
-            }
-            else return false;
+            e = constructEntry(sAB.get(0), sAB.get(1), sA.get(0), sB.get(0), sA.get(1), sB.get(1));
+            if(e.key <= EPSILON) penetrate = true;
         }
+        // Triangle Test
+        else e = pointTriangle(sAB, sA, sB, penetrate);
 
-        if (simplex.size() == 2)  							                       // Line Test
-        {
-            Vector ab = simplex.get(1) - simplex.get(0);
-            Vector origin;
-            float t = ((origin-simplex.get(0)) * ab);
-            float denom = ab*ab;
-            if (t >= denom)
-            {
-                maxD = simplex.get(1);
-                edgeFlag = 1;
-            }
-            else
-            {
-                t /= denom;
-                maxD = simplex.get(0) + ab*t;
-                edgeFlag = 0;
-            }
-        }
-        else maxD = pointTriangle(simplex, collide, edgeFlag); 	    // Triangle Test
-
-        if (collide == true) return true;
+        if (penetrate == true) return true;
     }
     return false;
 }
 
-private Vector pointTriangle(inout ArraySeq!(Vector) simplex, inout bool collide, inout int edgeFlag)
+private Entry pointTriangle(ArraySeq!(Vector) sAB, ArraySeq!(Vector) sA, ArraySeq!(Vector) sB, inout bool penetrate)
 {
-    Vector origin;
-    int i = simplex.size()-1;
+    int i = sAB.size()-1;
+    Vector ab = sAB.get(i-1) - sAB.tail;
+    Vector ac = sAB.get(i-2) - sAB.tail;
+    Vector ao = sAB.tail.neg;
 
-    Vector ab = simplex.get(i-1) - simplex.tail();
-    Vector ac = simplex.get(i-2) - simplex.tail();;
-    Vector ao = origin - simplex.tail();
-
-    float d1 = ab*ao;
-    float d2 = ac*ao;
+    double d1 = ab*ao;
+    double d2 = ac*ao;
+    // Origin in vertex region outside A
     if (d1 <= 0.0f && d2 <= 0.0f)
     {
-        edgeFlag = i;
-        return simplex.tail();			             // Origin in vertex region outside A
+        return constructEntry(sAB.get(i), sAB.tail, sA.get(i), sB.get(i), sA.tail,sB.tail);
     }
 
-    Vector bo = origin - simplex.get(i-1);           // Origin in vertex region outside B
-    float d3 = ab*bo;
-    float d4 = ac*bo;
-    float vc = d1*d4 - d3*d2;
-    if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)		// Origin in edge region outside AB
+    Vector bo = sAB.get(i-1).neg;
+    double d3 = ab*bo;
+    double d4 = ac*bo;
+    double vc = d1*d4 - d3*d2;
+    // Origin in edge region outside AB
+    if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)
     {
-        edgeFlag = i-1;
-        float v = d1/(d1 - d3);
-        return (simplex.tail() + ab*v);
+        return constructEntry(sAB.get(i-1), sAB.tail, sA.get(i-1), sB.get(i-1), sA.tail, sB.tail);
     }
 
-    Vector co = origin - simplex.get(i-2);
-    float d5 = ab*co;
-    float d6 = ac*co;
-    float vb = d5*d2 - d1*d6;
-    if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f)	   // Origin in edge region ouside AC
+    Vector co = sAB.get(i-2).neg;
+    double d5 = ab*co;
+    double d6 = ac*co;
+    double vb = d5*d2 - d1*d6;
+    // Origin in edge region ouside AC
+    if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f)
     {
-        float w = d2/(d2-d6);
-        edgeFlag = i-2;
-        return (simplex.tail() + ac*w);
+        return constructEntry(sAB.get(i-2), sAB.tail, sA.get(i-2), sB.get(i-2), sA.tail, sB.tail);
     }
-
-    collide = true;                                 // Origin inside face region. Penetration!!!
-
-    float va = d3*d6 - d5*d4;
-    float denom = 1f / (va + vb + vc);
-    float v = vb * denom;
-    float w = vc * denom;
-
-    return (simplex.tail() + ab*v + ac*w);
+    // Origin inside face region. Penetration!!!
+    penetrate = true;
+    Entry fooBar;
+    return fooBar;
 }
 
-private Vector support(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) rb1Simplex, inout ArraySeq!(Vector) rb2Simplex, Vector maxD)
+private Vector support(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sA, inout ArraySeq!(Vector) sB, Vector maxD)
 {
     Vector p1Simp = p1[0];
     Vector p2Simp = p2[0];
@@ -144,94 +114,130 @@ private Vector support(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) rb1Simp
     for (int i = 1; i < p2.length; i++)
         if (maxD*p2[i] > maxD*p2Simp) p2Simp = p2[i];
 
-    rb1Simplex.append(p1Simp);              // Maintain a list for each polytope
-    rb2Simplex.append(p2Simp);
+    sA.append(p1Simp);              // Maintain a list for each polytope
+    sB.append(p2Simp);
 
     Vector minkowskiSum = p1Simp - p2Simp;
     return minkowskiSum;
 }
 
-void segmentSegment(Vector p1, Vector q1, Vector p2, Vector q2, inout Vector c1, inout Vector c2)
+private bool closest_is_internal(Entry e )
 {
-    Vector d1 = q1 - p1;
-    Vector d2 = q2 - p2;
-    Vector r = p1 - p2;
-    float a = d1*d1;
-    float e = d2*d2;
-    float f = d2*r;
-    float s, t;
+    return (e.s > 0 && e.t > 0);
+}
 
-    // Check if either or both segments degenerate into a vertex
-    if (a <= EPSILON && e <= EPSILON)                           // Vertex-Vertex
-    {
-        // Both segments are a vertex
-        s = t = 0.0f;
-        c1 = p1;
-        c2 = p2;
-        return;
-    }
+private Entry constructEntry(Vector A, Vector B, Vector p0, Vector q0, Vector p1, Vector q1)
+{
+    Entry e;
 
-    if (a <= EPSILON)                                           // Vertex-Edge
+    e.y0 = A;
+    e.y1 = B;
+
+    e.p0 = p0;
+    e.p1 = p1;
+
+    e.q0 = q0;
+    e.q1 = q1;
+
+    Vector ab = B - A;
+    double t = A.neg*ab;
+
+    if ( t <= 0.0f)
     {
-        // First segment is a vertex
-        s = 0.0f;
-        t = f / e; // s = 0 => t = (b*s + f) / e = f / e
-        t = clip(t, 0.0f, 1.0f);
+        t = 0.0f;
+        e.v = A;
     }
     else
     {
-        float c = d1*r;
-        if (e <= EPSILON)                                       // Vertex-Edge
+        double denom = ab*ab;
+        if (t >= denom)
         {
-            // Second segment is a vertex
-            t = 0.0f;
-            s = clip(-c / a, 0.0f, 1.0f); // t = 0 => s = (b*t - c) / a = -c / a
+            e.v = B;
+            t = 1.0f;
         }
-        else                                                    // Edge-Edge
+        else
         {
-            // The general case
-            float b = d1*d2;
-            float denom = a*e-b*b;
-            c = d1*r;
-
-            if (denom != 0.0f)                                  // Segments not parallel
-            {
-                s = clip((b*f - c*e) / denom, 0.0f, 1.0f);
-            }
-            else                                                // Segments paralllel
-            {
-                s = 0.0f;
-            }
-
-            t = (b*s + f) / e;
-
-            float tnm = b*s + f;
-            if (tnm < 0.0f)
-            {
-                t = 0.0f;
-                s = clip(-c / a, 0.0f, 1.0f);
-            }
-            else if (tnm > e)
-            {
-                t = 1.0f;
-                s = clip((b - c) / a, 0.0f, 1.0f);
-            }
-            else
-            {
-                t = tnm / e;
-            }
+            t /= denom;
+            e.v = A + t * ab;
         }
     }
 
-    c1 = p1 + (d1 * s);
-    c2 = p2 + (d2 * t);
+    e.s = 1-t;
+    e.t = t;
+    e.key = e.v.magnitude;
 
-    return;
+    return e;
 }
 
-private float clip(float n, float min, float max)
+// Expanding Polytope Algorithim (EPA)
+
+Entry epa(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sAB, inout ArraySeq!(Vector) sA,
+           inout ArraySeq!(Vector) sB)
 {
-    if (n < min) return min;
-    if (n > max) return max;
-    return n;
+    // We want the final Simplex containing the origin
+    while (sAB.size > 3)
+    {
+        sAB.removeHead;
+        sA.removeHead;
+        sB.removeHead;
+    }
+
+    auto Qheap = new ArraySeq!(Entry);
+
+    for ( int i = 0; i < sAB.size; i++ )
+    {
+        int next_i = (i+1) % sAB.size;
+
+        Entry e = constructEntry(sAB.get(i),sAB.get(next_i),sA.get(i),sB.get(i), sA.get(next_i),sB.get(next_i));
+
+        if (closest_is_internal(e))
+        {
+            Qheap.append(e);
+        }
+    }
+
+    bool close_enough = false;
+    int failSafe = 0;
+    Entry e;
+
+    do
+    {
+        int j = 0;
+        for (int i = 0; i < Qheap.size; i++)
+        {
+            if (Qheap.get(i).key < Qheap.get(j).key) j = i;
+        }
+
+        e = Qheap.get(j);
+        Qheap.removeAt(j);
+
+        Vector v = e.v;
+
+        sAB.append(support(p1, p2, sA, sB, v));
+
+        double vl = v.magnitude;
+
+        double dot = v*sAB.tail/vl;
+        close_enough = (dot - vl) <= EPSILON;
+
+        if (close_enough == false)
+        {
+            Entry e1 = constructEntry(e.y0, sAB.tail, e.p0, e.q0, sA.tail, sB.tail);
+
+            if (closest_is_internal(e1))
+            {
+                Qheap.append(e1);
+            }
+
+            Entry e2 = constructEntry(e.y1, sAB.tail, e.p1, e.q1, sA.tail, sB.tail);
+
+            if (closest_is_internal(e2))
+            {
+                Qheap.append(e2);
+            }
+        }
+    }
+    while (close_enough == false && failSafe++ < 100);
+
+    return e;
 }

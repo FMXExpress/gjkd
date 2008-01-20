@@ -21,14 +21,15 @@
 module math;
 
 import tango.math.Math;
+import tango.util.collection.ArraySeq;
 
-const EPSILON = 0.001f;
+const EPSILON = 0.00008f;
 
 struct Vector
 {
-    float x = 0f, y = 0f, z = 0f;
+    double x = 0f, y = 0f, z = 0f;
 
-    static Vector opCall(float ax, float ay, float az)
+    static Vector opCall(double ax, double ay, double az)
     {
         Vector u;
         u.x = ax;
@@ -39,7 +40,7 @@ struct Vector
 
     void normalize()
     {
-        float m = magnitude();
+        double m = magnitude();
         x *= 1.0f/m;
         y *= 1.0f/m;
         z *= 1.0f/m;
@@ -74,7 +75,7 @@ struct Vector
         return(x*u.x + y*u.y + z*u.z);
     }
 
-    Vector opMul(float s)			// Scaler Multiplication
+    Vector opMul(double s)			// Scaler Multiplication
     {
         return Vector(x*s, y*s, z*s);
     }
@@ -84,7 +85,7 @@ struct Vector
         return Vector(y*u.z - z*u.y, -x*u.z + z*u.x, x*u.y - y*u.x);
     }
 
-    Vector opDiv(float s)
+    Vector opDiv(double s)
     {
         return Vector(x/s, y/s, z/s);
     }
@@ -98,4 +99,18 @@ struct Vector
     {
         return sqrt(x*x + y*y + z*z);
     }
+}
+
+struct Entry
+{
+
+    Vector y0, y1;
+    Vector p0, p1;
+    Vector q0, q1;
+    Vector v;
+
+    double key;
+    double t;
+    double s;
+
 }

@@ -20,13 +20,13 @@ module chainHull_2D;
 
 import math;
 
-float isLeft( Vector P0, Vector P1, Vector P2 )
+double isLeft( Vector P0, Vector P1, Vector P2 )
 {
     return (P1.x - P0.x)*(P2.y - P0.y) - (P2.x - P0.x)*(P1.y - P0.y);
 }
 
 //===================================================================
- 
+
 
 // chainHull_2D(): Andrew's monotone chain 2D convex hull algorithm
 //     Input:  P[] = an array of 2D points
@@ -39,12 +39,12 @@ int chainHull_2D( Vector[] P,  inout Vector[] H )
     // the output array H[] will be used as the stack
     int    bot=0, top=(-1);  // indices for bottom and top of the stack
     int    i;                // array scan index
-    
+
     int n = P.length;
 
     // Get the indices of points with min x-coord and min|max y-coord
     int minmin = 0, minmax;
-    float xmin = P[0].x;
+    double xmin = P[0].x;
     for (i=1; i<n; i++)
         if (P[i].x != xmin) break;
     minmax = i-1;
@@ -58,7 +58,7 @@ int chainHull_2D( Vector[] P,  inout Vector[] H )
 
     // Get the indices of points with max x-coord and min|max y-coord
     int maxmin, maxmax = n-1;
-    float xmax = P[n-1].x;
+    double xmax = P[n-1].x;
     for (i=n-2; i>=0; i--)
         if (P[i].x != xmax) break;
     maxmin = i+1;

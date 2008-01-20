@@ -29,7 +29,7 @@ import derelict.sdl.sdl;
 import gjkSys;
 import math;
 
-const char[] WINDOW_TITLE = "gjkD v0.3";
+const char[] WINDOW_TITLE = "gjkD v0.4";
 
 //The screen attributes
 const int SCREEN_WIDTH = 800;
@@ -218,17 +218,15 @@ void drawScene()
                 glVertex2d(b.vertex[0][j].x, b.vertex[0][j].y);
         }
         glEnd();
-
         glLoadIdentity();
-        glFlush();
     }
 
     glTranslatef(50,50,0);
 
-    if (system.collisionState == false) glColor3f(1.0, 1.0, 1.0);	// White - Clear
-    else glColor3f(0, 0, 1);					                    // Blue - Collision
+    if (system.penetrate == false) glColor3f(1.0, 1.0, 1.0);	// White - Clear
+    else glColor3f(0, 0, 1);					                // Blue - Penetration
 
-    glBegin(GL_LINE_STRIP);						                    // Draw Minkowski Hull
+    glBegin(GL_LINE_STRIP);						                // Draw Minkowski Hull
     {
         int k = 0;
         foreach(Vector m; system.minkHull)
@@ -241,47 +239,27 @@ void drawScene()
     glEnd();
 
     glLoadIdentity();
-    glFlush();
     glTranslatef(50,50,0);
 
-    glColor3f(1,1,0);						                        // Yellow
-
-    while (system.simplex.size() > 3) system.simplex.removeHead();  // Display final simplex
-
-    glBegin(GL_LINE_LOOP);						                    // Draw Simplex
-    {
-        for (int j=0; j < system.simplex.size(); j++)
-            glVertex2d(system.simplex.get(j).x, system.simplex.get(j).y);
-    }
-    glEnd();
-
     glColor3f(1,0,0);						                        // Red
-    glPointSize(6);
+    glPointSize(10);
 
     glBegin(GL_POINTS);						                        // Draw closest point to origin
     {
-        glVertex2d(system.plot.x, system.plot.y);
+        glVertex2d(system.range.x, system.range.y);
     }
     glEnd();
 
     glLoadIdentity();
-    glFlush();
 
-    glPointSize(10);
-
-    if (system.collisionState == false)
+    glBegin(GL_POINTS);
     {
-        glBegin(GL_POINTS);
-        {
-            glColor3f(1,0,0);						                        // Red
-            glVertex2d(system.cp1.x, system.cp1.y);
-            glColor3f(0,1,0);                                               //Green
-            glVertex2d(system.cp2.x, system.cp2.y);
-        }
-        glEnd();
+        glColor3f(1,0,0);						                        // Red
+        glVertex2d(system.cp1.x, system.cp1.y);
+        glColor3f(0,1,0);                                               //Green
+        glVertex2d(system.cp2.x, system.cp2.y);
     }
-
-    glFlush();
+    glEnd();
 }
 
 void createGLWindow(char[] title, int width, int height, int bits, bool fullScreen)

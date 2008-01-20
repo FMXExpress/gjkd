@@ -28,36 +28,31 @@ import math;
 import collide;
 import chainHull;
 
-const float X = 2.5f;			// X polygon scale factor
-const float Y = 2.5f;			// Y polygon scale factor
-
+const SCALE = 5;            // Poltgon scale factor
 
 class RigidSys
 {
     RigidBody[] rb;
     Vector[] mink, minkHull;
-    ArraySeq!(Vector) simplex;
 
-    Vector plot;
+    Vector range;
     Vector cp1,cp2;
 
     int shape1 = 1;			// Polygon #1 shape
     int shape2 = 1;			// Polygon #2 shape
     int stateSize = 12;
-    float[][] minkSum;
-    float[] x0, xEnd;
-    bool collisionState;
+    double[][] minkSum;
+    double[] x0, xEnd;
+    bool penetrate;
 
     this(long MAXRB)
     {
 
         rb.length = MAXRB;
-        simplex = new ArraySeq!(Vector);
-
         rb[0] = new RigidBody(shape1);
         rb[1] = new RigidBody(shape2);
 
-        minkSum = new float[][]((shape1+2)*(shape2+2),2);
+        minkSum = new double[][]((shape1+2)*(shape2+2),2);
         mink.length = minkHull.length = (shape1+2)*(shape2+2);
 
         rb[0].pos.x = 40f;
@@ -66,7 +61,7 @@ class RigidSys
         rb[0].vel.y = 0f;
 
         rb[1].pos.x = 45f;
-        rb[1].pos.y = 30f;
+        rb[1].pos.y = 50f;
         rb[1].vel.x = -5f;
         rb[1].vel.y = -5f;
 
@@ -90,25 +85,22 @@ class RigidSys
 
         // Narrow Phase Collision Detection
 
-        auto rb1Simplex = new ArraySeq!(Vector);
-        auto rb2Simplex = new ArraySeq!(Vector);
-        auto ec1 = new ArraySeq!(Vector);
-        auto ec2 = new ArraySeq!(Vector);
-        simplex.clear();
+        auto sA = new ArraySeq!(Vector);    // Rigid Body 1 support map
+        auto sB = new ArraySeq!(Vector);    // Rigid Body 2 support map
+        auto sAB = new ArraySeq!(Vector);   // CSO
 
-        int edgeFlag = 0;       // Tracks which edge or vertex the closest points reside.
+        Entry e;                            // Stores barycentric coordinates
 
-        collisionState = gjk(rb[0].vertex[0], rb[1].vertex[0], simplex, plot, rb1Simplex, rb2Simplex, edgeFlag);
+        penetrate = gjk(rb[0].vertex[0], rb[1].vertex[0], sAB, sA, sB, e);
 
-        ec1.append(rb1Simplex.get(edgeFlag));
-        ec1.append(rb1Simplex.tail());
+        if (penetrate == true)
+            e = epa(rb[0].vertex[0], rb[1].vertex[0], sAB, sA, sB);
 
-        ec2.append(rb2Simplex.get(edgeFlag));
-        ec2.append(rb2Simplex.tail());
+        cp1 = e.s * e.p0 + e.t * e.p1;
+        cp2 = e.s * e.q0 + e.t * e.q1;
+        range = e.v;
 
-        segmentSegment(ec1.head(), ec1.tail(), ec2.head(), ec2.tail(), cp1, cp2);
-
-        /* cp1 and cp2 represent the closest points on each polytope.  If you normalize the plot variable,
+        /* cp1 and cp2 represent the closest points on each polytope.  If you normalize the range,
            you have the contact normal, which sets you up nicely for collision response */
 
         minkDiff();
@@ -120,18 +112,18 @@ class RigidSys
         {
 
             rb[0].shape(shape1);
-            minkSum = new float[][]((shape1+2)*(shape2+2),2);
+            minkSum = new double[][]((shape1+2)*(shape2+2),2);
             mink.length = minkHull.length = (shape1+2)*(shape2+2);
         }
         else
         {
             rb[1].shape(shape2);
-            minkSum = new float[][]((shape1+2)*(shape2+2),2);
+            minkSum = new double[][]((shape1+2)*(shape2+2),2);
             mink.length = minkHull.length = (shape1+2)*(shape2+2);
         }
     }
 
-    void minkDiff()								                    // Calculate Minkowski Difference for display
+    private void minkDiff()								                    // Calculate Minkowski Difference for display
     {
         int i = 0;
         for (int j; j < rb[0].vertex[0].length; j++)
@@ -159,30 +151,30 @@ class RigidSys
         chainHull_2D(mink,minkHull);					            // Find Minkowski Hull
     }
 
-    void rk4(float h)				        // Runge Kutta 4th order ODE Solver
+    private void rk4(double h)				        // Runge Kutta 4th order ODE Solver
     {
-        float[] inp, k1, k2, k3, k4;
-        float hh, h6;
+        double[] inp, k1, k2, k3, k4;
+        double hh, h6;
 
         inp.length = k1.length = k2.length = k3.length = k4.length = rb.length * stateSize;
 
-        float x = 1f/6f;
+        double x = 1f/6f;
         dxdt(h, x0, k1);			// Step 1
-        foreach(int i, inout float p; inp)
+        foreach(int i, inout double p; inp)
         p = x0[i] + k1[i]*h*0.5f;
         dxdt(h, inp, k2);			// Step 2
-        foreach(int i, inout float p; inp)
+        foreach(int i, inout double p; inp)
         p = x0[i] + k2[i]*h*0.5f;
         dxdt(h, inp, k3);			// Step 3
-        foreach(int i, inout float p; inp)
+        foreach(int i, inout double p; inp)
         p = x0[i] + k3[i]*h;
         dxdt(h, inp, k4);			// Step 4
-        foreach(int i, inout float p; xEnd)
+        foreach(int i, inout double p; xEnd)
         p = x0[i] + (k1[i] + 2f*k2[i] + 2f*k3[i] + k4[i])*h*x;
 
     }
 
-    void dxdt(float t, float[] x, inout float[] xdot)
+    private void dxdt(double t, double[] x, inout double[] xdot)
     {
         arrayToBodies(x);
 
@@ -192,15 +184,15 @@ class RigidSys
         }
     }
 
-    void ddtStateToArray(RigidBody b, inout float[] xdot, int i)
+    private void ddtStateToArray(RigidBody b, inout double[] xdot, int i)
     {
         xdot[i++] = b.vel.x;
         xdot[i++] = b.vel.y;
         xdot[i++] = b.vel.z;
 
-        xdot[i++] = b.omega.x;
-        xdot[i++] = b.omega.y;
-        xdot[i++] = b.omega.z;
+        xdot[i++] = b.omega.x/2.0f;
+        xdot[i++] = b.omega.y/2.0f;
+        xdot[i++] = b.omega.z/2.0f;
 
         xdot[i++] = b.force.x;
         xdot[i++] = b.force.y;
@@ -211,7 +203,7 @@ class RigidSys
         xdot[i++] = b.torque.z;
     }
 
-    void bodiesToArray(inout float[] x)
+    private void bodiesToArray(inout double[] x)
     {
         int i = 0;
         foreach(RigidBody b; rb)
@@ -234,7 +226,7 @@ class RigidSys
         }
     }
 
-    void arrayToBodies(float[] x)
+    private void arrayToBodies(double[] x)
     {
         int i = 0;
         foreach(inout RigidBody b; rb)
@@ -258,12 +250,12 @@ class RigidSys
     }
 }
 
-class RigidBody
+private class RigidBody
 {
     // Constant variables
-    float mass;
-    float iBody;
-    float iBodyInv;
+    double mass;
+    double iBody;
+    double iBodyInv;
 
     Vector[][] V;
     Vector[][] vertex;
@@ -300,12 +292,12 @@ class RigidBody
             vertex = new Vector[][](1,3);
             V = new Vector[][](1,3);
 
-            V[0][0].x = 0f;
-            V[0][0].y = Y;
-            V[0][1].x = X;
-            V[0][1].y = -Y;
-            V[0][2].x = -X;
-            V[0][2].y = -Y;
+            V[0][0].x = 0.0f;
+            V[0][0].y = 1.0f;
+            V[0][1].x = 1.0f;
+            V[0][1].y = -1.0f;
+            V[0][2].x = -1.0f;
+            V[0][2].y = -1.0f;
             break;
         }
         case 2:		// Quad
@@ -313,14 +305,14 @@ class RigidBody
             vertex = new Vector[][](1,4);
             V = new Vector[][](1,4);
 
-            V[0][0].x = X;
-            V[0][0].y = Y;
-            V[0][1].x = X;
-            V[0][1].y = -Y;
-            V[0][2].x = -X;
-            V[0][2].y = -Y;
-            V[0][3].x = -X;
-            V[0][3].y = Y;
+            V[0][0].x = 1.0f;
+            V[0][0].y = 1.0f;
+            V[0][1].x = 1.0f;
+            V[0][1].y = -1.0f;
+            V[0][2].x = -1.0f;
+            V[0][2].y = -1.0f;
+            V[0][3].x = -1.0f;
+            V[0][3].y = 1.0f;
             break;
 
         }
@@ -329,16 +321,16 @@ class RigidBody
             vertex = new Vector[][](1,5);
             V = new Vector[][](1,5);
 
-            V[0][0].x = X;
-            V[0][0].y = Y;
-            V[0][1].x = 2f*X;
-            V[0][1].y = 0f;
-            V[0][2].x = 0f;
-            V[0][2].y = -2f*Y;
-            V[0][3].x = -2f*X;
-            V[0][3].y = 0f;
-            V[0][4].x = -X;
-            V[0][4].y = Y;
+            V[0][0].x = 1.0f;
+            V[0][0].y = 1.0f;
+            V[0][1].x = 2.0f;
+            V[0][1].y = 0.0f;
+            V[0][2].x = 0.0f;
+            V[0][2].y = -2.0f;
+            V[0][3].x = -2.0f;
+            V[0][3].y = 0.0f;
+            V[0][4].x = -1.0f;
+            V[0][4].y = 1.0f;
             break;
         }
         case 4:		// Hexagon
@@ -346,18 +338,18 @@ class RigidBody
             vertex = new Vector[][](1,6);
             V = new Vector[][](1,6);
 
-            V[0][0].x = X;
-            V[0][0].y = Y;
-            V[0][1].x = 1.5f*X;
-            V[0][1].y = 0f;
-            V[0][2].x = 0.5f*X;
-            V[0][2].y = -3f*Y;
-            V[0][3].x = -0.5f*X;
-            V[0][3].y = -3f*Y;
-            V[0][4].x = -1.5f*X;
-            V[0][4].y = 0;
-            V[0][5].x = -X;
-            V[0][5].y = Y;
+            V[0][0].x = 1.0f;
+            V[0][0].y = 1.0f;
+            V[0][1].x = 1.5f;
+            V[0][1].y = 0.0f;
+            V[0][2].x = 0.5f;
+            V[0][2].y = -3.0f;
+            V[0][3].x = -0.5f;
+            V[0][3].y = -3.0f;
+            V[0][4].x = -1.5f;
+            V[0][4].y = 0.0f;
+            V[0][5].x = -1.0f;
+            V[0][5].y = 1.0f;
             break;
         }
         }
@@ -375,8 +367,8 @@ class RigidBody
 
         for (int i = 0; i < V[0].length; i++)
         {
-            vertex[0][i].x = pos.x + (V[0][i].x*cd + V[0][i].y*sd);
-            vertex[0][i].y = pos.y + (-V[0][i].x*sd + V[0][i].y*cd);
+            vertex[0][i].x = pos.x + SCALE*(V[0][i].x*cd + V[0][i].y*sd);
+            vertex[0][i].y = pos.y + SCALE*(-V[0][i].x*sd + V[0][i].y*cd);
         }
     }
 }
