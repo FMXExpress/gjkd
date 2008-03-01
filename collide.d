@@ -20,38 +20,38 @@
  */
 module collision;
 
-import tango.util.collection.ArraySeq;
+import tango.util.collection.LinkSeq;
 import tango.math.Math;
 import tango.io.Stdout;
 
 import math;
 
 // The Gilbert-Johnson-Keerthi algorithm
-bool gjk(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sAB, inout ArraySeq!(Vector) sA,
-         inout ArraySeq!(Vector) sB, inout Entry e)
+
+bool gjk(Vector[] p1, Vector[] p2, inout Vector[] sAB, inout Vector[] sA, inout Vector[] sB, inout Entry e)
 {
-    sA.append(p1[0]);
-    sB.append(p2[0]);
-    sAB.append(sA.tail() - sB.tail());
+    sA  ~= p1[0];
+    sB  ~= p2[0];
+    sAB ~= (sA[0] - sB[0]);
 
-    e = constructEntry(sAB.tail, sAB.tail, sA.tail, sB.tail, sA.tail, sB.tail);
+    e = constructEntry(sAB[0], sAB[0], sA[0], sB[0], sA[0], sB[0]);
 
-    bool penetrate;
-    int failsafe;
+    bool penetrate = false;
+    int  failsafe;
 
-    while (failsafe++ < 10) // Don't want to get caught in an infinite loop!
+    while (failsafe++ < 10)       /// Don't want to get caught in an infinite loop!
     {
-        sAB.append(support(p1, p2, sA, sB, e.v.neg));
+        sAB ~= support(p1, p2, sA, sB, e.v.neg);
 
-        if ((e.v*e.v - e.v*sAB.tail()) <= EPSILON) return false;
+        if ((e.v*e.v) - e.v*sAB[sAB.length - 1] < 1) return false;
 
-        // Line Test
-        if (sAB.size == 2)
+        /// Line Test
+        if (sAB.length == 2)
         {
-            e = constructEntry(sAB.get(0), sAB.get(1), sA.get(0), sB.get(0), sA.get(1), sB.get(1));
-            if(e.key <= EPSILON) penetrate = true;
+            e = constructEntry(sAB[0], sAB[1], sA[0], sB[0], sA[1], sB[1]);
+            if (e.key < 0.1) penetrate = true;
         }
-        // Triangle Test
+        /// Triangle Test
         else e = pointTriangle(sAB, sA, sB, penetrate);
 
         if (penetrate == true) return true;
@@ -59,74 +59,74 @@ bool gjk(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sAB, inout ArraySeq!(
     return false;
 }
 
-private Entry pointTriangle(ArraySeq!(Vector) sAB, ArraySeq!(Vector) sA, ArraySeq!(Vector) sB, inout bool penetrate)
+///
+private Entry pointTriangle(Vector[] sAB, Vector[] sA, Vector[] sB, inout bool penetrate)
 {
-    int i = sAB.size()-1;
-    Vector ab = sAB.get(i-1) - sAB.tail;
-    Vector ac = sAB.get(i-2) - sAB.tail;
-    Vector ao = sAB.tail.neg;
+    int      i  = sAB.length - 1;
+    Vector ab = sAB[i - 1] - sAB[sAB.length - 1];
+    Vector ac = sAB[i - 2] - sAB[sAB.length - 1];
+    Vector ao = sAB[sAB.length - 1].neg;
 
-    double d1 = ab*ao;
-    double d2 = ac*ao;
-    // Origin in vertex region outside A
+    float   d1 = ab*ao;
+    float   d2 = ac*ao;
+
+    /// Origin in vertex region outside A
     if (d1 <= 0.0f && d2 <= 0.0f)
-    {
-        return constructEntry(sAB.get(i), sAB.tail, sA.get(i), sB.get(i), sA.tail,sB.tail);
-    }
+        return constructEntry(sAB[i], sAB[sAB.length - 1], sA[i], sB[i], sA[sA.length - 1], sB[sB.length - 1]);
 
-    Vector bo = sAB.get(i-1).neg;
-    double d3 = ab*bo;
-    double d4 = ac*bo;
-    double vc = d1*d4 - d3*d2;
-    // Origin in edge region outside AB
+    Vector bo = sAB[i - 1].neg;
+    float   d3 = ab*bo;
+    float   d4 = ac*bo;
+    float   vc = d1 * d4 - d3 * d2;
+    /// Origin in edge region outside AB
     if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)
-    {
-        return constructEntry(sAB.get(i-1), sAB.tail, sA.get(i-1), sB.get(i-1), sA.tail, sB.tail);
-    }
+        return constructEntry(sAB[i - 1], sAB[sAB.length - 1], sA[i - 1], sB[i - 1], sA[sA.length - 1], sB[sB.length - 1]);
 
-    Vector co = sAB.get(i-2).neg;
-    double d5 = ab*co;
-    double d6 = ac*co;
-    double vb = d5*d2 - d1*d6;
-    // Origin in edge region ouside AC
+    Vector co = sAB[i - 2].neg;
+    float   d5 = ab*co;
+    float   d6 = ac*co;
+    float   vb = d5 * d2 - d1 * d6;
+    /// Origin in edge region ouside AC
     if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f)
-    {
-        return constructEntry(sAB.get(i-2), sAB.tail, sA.get(i-2), sB.get(i-2), sA.tail, sB.tail);
-    }
-    // Origin inside face region. Penetration!!!
+        return constructEntry(sAB[i - 2], sAB[sAB.length - 1], sA[i - 2], sB[i - 2], sA[sA.length - 1], sB[sB.length - 1]);
+    /// Origin inside face region. Penetration!!!
     penetrate = true;
     Entry fooBar;
     return fooBar;
 }
 
-private Vector support(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sA, inout ArraySeq!(Vector) sB, Vector maxD)
+///
+private Vector support(Vector[] p1, Vector[] p2, inout Vector[] sA, inout Vector[] sB, Vector maxD)
 {
     Vector p1Simp = p1[0];
     Vector p2Simp = p2[0];
 
-    // To find extreme vertexes I employ a brute force method.  This is sufficient for small 2D polygons.
-    // Dobkin Kirkpatrick (DK), BSP, or hill climbing algorithms should be investigated for larger polygons and/or 3D.
+    /// To find extreme vertexes I employ a brute force method.  This is sufficient for small 2D polygons.
+    /// Dobkin Kirkpatrick (DK), BSP, or hill climbing algorithms should be investigated for larger polygons and/or 3D.
 
     for (int i = 1; i < p1.length; i++)
         if (maxD*p1[i] > maxD*p1Simp) p1Simp = p1[i];
 
-    maxD = maxD*-1;
+    maxD = maxD * -1;
 
     for (int i = 1; i < p2.length; i++)
         if (maxD*p2[i] > maxD*p2Simp) p2Simp = p2[i];
 
-    sA.append(p1Simp);              // Maintain a list for each polytope
-    sB.append(p2Simp);
+    /// Maintain a list for each polytope
+    sA ~= p1Simp;
+    sB ~= p2Simp;
 
     Vector minkowskiSum = p1Simp - p2Simp;
     return minkowskiSum;
 }
 
-private bool closest_is_internal(Entry e )
+///
+private bool closest_is_internal(Entry e)
 {
-    return (e.s > 0 && e.t > 0);
+    return e.s > 0 && e.t > 0;
 }
 
+///
 private Entry constructEntry(Vector A, Vector B, Vector p0, Vector q0, Vector p1, Vector q1)
 {
     Entry e;
@@ -141,118 +141,103 @@ private Entry constructEntry(Vector A, Vector B, Vector p0, Vector q0, Vector p1
     e.q1 = q1;
 
     Vector ab = B - A;
-    double t = A.neg*ab;
+    float   t  = A.neg*ab;
 
-    if ( t <= 0.0f)
+    if (t <= 0.0f)
     {
-        t = 0.0f;
+        t   = 0.0f;
         e.v = A;
     }
     else
     {
-        double denom = ab*ab;
+        float denom = ab*ab;
         if (t >= denom)
         {
             e.v = B;
-            t = 1.0f;
+            t   = 1.0f;
         }
         else
         {
-            t /= denom;
+            t  /= denom;
             e.v = A + t * ab;
         }
     }
 
-    e.s = 1-t;
-    e.t = t;
+    e.s     = 1 - t;
+    e.t     = t;
     e.key = e.v.magnitude;
-
     return e;
 }
 
-// Expanding Polytope Algorithim (EPA)
-
-Entry epa(Vector[] p1, Vector[] p2, inout ArraySeq!(Vector) sAB, inout ArraySeq!(Vector) sA,
-           inout ArraySeq!(Vector) sB)
+/// Expanding Polytope Algorithim (EPA)
+Entry epa(Vector[] p1, Vector[] p2, inout Vector[] sAB, inout Vector[] sA, inout Vector[] sB)
 {
-    if(sAB.size == 2)   // Line
+    /// Line
+    if (sAB.length == 2)
     {
-        // This only works half the time, when you have a shallow penetration. Need to
-        // optimize this for deep penetrations as well
-        if(sAB.head.magnitude < sAB.tail.magnitude)
-        {
-            return constructEntry(sAB.head, sAB.head, sA.head, sB.head, sA.head, sB.head);
-        }
+        /// This only works when you have a shallow penetration. Need to optimize this for deep penetrations as well
+        if (sAB[0].magnitude < sAB[sAB.length - 1].magnitude)
+            return constructEntry(sAB[0], sAB[0], sA[0], sB[0], sA[0], sB[0]);
         else
-        {
-            return constructEntry(sAB.tail, sAB.tail, sA.tail, sB.tail, sA.tail, sB.tail);
-        }
+            return constructEntry(sAB[sAB.length - 1], sAB[sAB.length - 1], sA[sA.length - 1], sB[sB.length - 1], sA[sA.length - 1], sB[sB.length - 1]);
     }
 
-    // We want the final Simplex containing the origin
-    while (sAB.size > 3)
+    /// We want the final Simplex containing the origin
+    if (sAB.length > 3)
     {
-        sAB.removeHead;
-        sA.removeHead;
-        sB.removeHead;
+        Vector[] A = sA[sA.length - 3 .. sA.length];
+        Vector[] B = sB[sB.length - 3 .. sB.length];
+        Vector[] C = sAB[sAB.length - 3 .. sAB.length];
+        sA = A; sB = B; sAB = C;
     }
 
-    auto Qheap = new ArraySeq!(Entry);
+    auto Qheap = new LinkSeq!(Entry);
 
-    for ( int i = 0; i < sAB.size; i++ )
+    for (int i = 0; i < sAB.length; i++)
     {
-        int next_i = (i+1) % sAB.size;
-
-        Entry e = constructEntry(sAB.get(i),sAB.get(next_i),sA.get(i),sB.get(i), sA.get(next_i),sB.get(next_i));
+        int   next_i = (i + 1) % sAB.length;
+        Entry e      = constructEntry(sAB[i], sAB[next_i], sA[i], sB[i], sA[next_i], sB[next_i]);
 
         if (closest_is_internal(e))
-        {
             Qheap.append(e);
-        }
     }
 
-    bool close_enough = false;
-    int failSafe = 0;
+    bool  close_enough = false;
+    int   failSafe     = 0;
     Entry e;
 
     do
     {
         int j = 0;
         for (int i = 0; i < Qheap.size; i++)
-        {
             if (Qheap.get(i).key < Qheap.get(j).key) j = i;
-        }
 
         e = Qheap.get(j);
         Qheap.removeAt(j);
 
         Vector v = e.v;
 
-        sAB.append(support(p1, p2, sA, sB, v));
+        sAB ~= support(p1, p2, sA, sB, v);
 
-        double vl = v.magnitude;
+        float vl = v.magnitude;
 
-        double dot = v*sAB.tail/vl;
+        float dot = v*sAB[sAB.length - 1] / vl;
         close_enough = (dot - vl) <= EPSILON;
 
         if (close_enough == false)
         {
-            Entry e1 = constructEntry(e.y0, sAB.tail, e.p0, e.q0, sA.tail, sB.tail);
+            Entry e1 = constructEntry(e.y0, sAB[sAB.length - 1], e.p0, e.q0, sA[sA.length - 1], sB[sB.length - 1]);
 
             if (closest_is_internal(e1))
-            {
                 Qheap.append(e1);
-            }
 
-            Entry e2 = constructEntry(e.y1, sAB.tail, e.p1, e.q1, sA.tail, sB.tail);
 
+            Entry e2 = constructEntry(e.y1, sAB[sAB.length - 1], e.p1, e.q1, sA[sA.length - 1], sB[sB.length - 1]);
             if (closest_is_internal(e2))
-            {
                 Qheap.append(e2);
-            }
         }
-    }
-    while (close_enough == false && failSafe++ < 100);
+    } while (close_enough == false && failSafe++ < 100);
 
     return e;
 }
+

@@ -85,10 +85,10 @@ class RigidSys
 
         // Narrow Phase Collision Detection
 
-        auto sA = new ArraySeq!(Vector);    // Rigid Body 1 support map
-        auto sB = new ArraySeq!(Vector);    // Rigid Body 2 support map
-        auto sAB = new ArraySeq!(Vector);   // CSO
-        Entry e;                            // Stores barycentric coordinates
+        Vector[] sA;    // Rigid Body 1 support map
+        Vector[] sB;    // Rigid Body 2 support map
+        Vector[] sAB;   // CSO
+        Entry e;        // Stores barycentric coordinates
 
         penetrate = gjk(rb[0].vertex[0], rb[1].vertex[0], sAB, sA, sB, e);
 
