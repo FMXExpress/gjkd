@@ -18,32 +18,38 @@
  * along with gjkD.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-module collision;
+module collide;
 
 import tango.util.collection.LinkSeq;
 import tango.math.Math;
-import tango.io.Stdout;
 
 import math;
+import gjkSys;
+
+const SIMPLEX_EPSILON = 0.1f;
 
 // The Gilbert-Johnson-Keerthi algorithm
 
-bool gjk(Vector[] p1, Vector[] p2, inout Vector[] sAB, inout Vector[] sA, inout Vector[] sB, inout Entry e)
+bool gjk(RigidBody rBody1, RigidBody rBody2, inout Vector[] sAB, inout Vector[] sA, inout Vector[] sB, inout Entry e)
 {
-    sA  ~= p1[0];
-    sB  ~= p2[0];
+    sA  ~= rBody1.vertex[1];
+    sB  ~= rBody2.vertex[0];
     sAB ~= (sA[0] - sB[0]);
 
     e = constructEntry(sAB[0], sAB[0], sA[0], sB[0], sA[0], sB[0]);
 
-    bool penetrate = false;
+    bool penetrate;
     int  failsafe;
 
     while (failsafe++ < 10)       /// Don't want to get caught in an infinite loop!
     {
-        sAB ~= support(p1, p2, sA, sB, e.v.neg);
+        Vector v1 = rBody1.support(-e.v);
+        Vector v2 = rBody2.support(e.v);
 
-        if ((e.v*e.v) - e.v*sAB[sAB.length - 1] < 1) return false;
+        sA ~= v1; sB ~= v2;
+        sAB ~= v1 - v2;
+
+        if ((e.v*e.v) - e.v*sAB[sAB.length - 1] < SIMPLEX_EPSILON) return false;
 
         /// Line Test
         if (sAB.length == 2)
@@ -54,7 +60,7 @@ bool gjk(Vector[] p1, Vector[] p2, inout Vector[] sAB, inout Vector[] sA, inout 
         /// Triangle Test
         else e = pointTriangle(sAB, sA, sB, penetrate);
 
-        if (penetrate == true) return true;
+        if (penetrate) return true;
     }
     return false;
 }
@@ -65,7 +71,7 @@ private Entry pointTriangle(Vector[] sAB, Vector[] sA, Vector[] sB, inout bool p
     int      i  = sAB.length - 1;
     Vector ab = sAB[i - 1] - sAB[sAB.length - 1];
     Vector ac = sAB[i - 2] - sAB[sAB.length - 1];
-    Vector ao = sAB[sAB.length - 1].neg;
+    Vector ao = -sAB[sAB.length - 1];
 
     float   d1 = ab*ao;
     float   d2 = ac*ao;
@@ -74,7 +80,7 @@ private Entry pointTriangle(Vector[] sAB, Vector[] sA, Vector[] sB, inout bool p
     if (d1 <= 0.0f && d2 <= 0.0f)
         return constructEntry(sAB[i], sAB[sAB.length - 1], sA[i], sB[i], sA[sA.length - 1], sB[sB.length - 1]);
 
-    Vector bo = sAB[i - 1].neg;
+    Vector bo = -sAB[i - 1];
     float   d3 = ab*bo;
     float   d4 = ac*bo;
     float   vc = d1 * d4 - d3 * d2;
@@ -82,7 +88,7 @@ private Entry pointTriangle(Vector[] sAB, Vector[] sA, Vector[] sB, inout bool p
     if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)
         return constructEntry(sAB[i - 1], sAB[sAB.length - 1], sA[i - 1], sB[i - 1], sA[sA.length - 1], sB[sB.length - 1]);
 
-    Vector co = sAB[i - 2].neg;
+    Vector co = -sAB[i - 2];
     float   d5 = ab*co;
     float   d6 = ac*co;
     float   vb = d5 * d2 - d1 * d6;
@@ -93,31 +99,6 @@ private Entry pointTriangle(Vector[] sAB, Vector[] sA, Vector[] sB, inout bool p
     penetrate = true;
     Entry fooBar;
     return fooBar;
-}
-
-///
-private Vector support(Vector[] p1, Vector[] p2, inout Vector[] sA, inout Vector[] sB, Vector maxD)
-{
-    Vector p1Simp = p1[0];
-    Vector p2Simp = p2[0];
-
-    /// To find extreme vertexes I employ a brute force method.  This is sufficient for small 2D polygons.
-    /// Dobkin Kirkpatrick (DK), BSP, or hill climbing algorithms should be investigated for larger polygons and/or 3D.
-
-    for (int i = 1; i < p1.length; i++)
-        if (maxD*p1[i] > maxD*p1Simp) p1Simp = p1[i];
-
-    maxD = maxD * -1;
-
-    for (int i = 1; i < p2.length; i++)
-        if (maxD*p2[i] > maxD*p2Simp) p2Simp = p2[i];
-
-    /// Maintain a list for each polytope
-    sA ~= p1Simp;
-    sB ~= p2Simp;
-
-    Vector minkowskiSum = p1Simp - p2Simp;
-    return minkowskiSum;
 }
 
 ///
@@ -141,7 +122,7 @@ private Entry constructEntry(Vector A, Vector B, Vector p0, Vector q0, Vector p1
     e.q1 = q1;
 
     Vector ab = B - A;
-    float   t  = A.neg*ab;
+    float   t  = -A*ab;
 
     if (t <= 0.0f)
     {
@@ -170,7 +151,7 @@ private Entry constructEntry(Vector A, Vector B, Vector p0, Vector q0, Vector p1
 }
 
 /// Expanding Polytope Algorithim (EPA)
-Entry epa(Vector[] p1, Vector[] p2, inout Vector[] sAB, inout Vector[] sA, inout Vector[] sB)
+Entry epa(RigidBody rBody1, RigidBody rBody2, inout Vector[] sAB, inout Vector[] sA, inout Vector[] sB)
 {
     /// Line
     if (sAB.length == 2)
@@ -217,14 +198,18 @@ Entry epa(Vector[] p1, Vector[] p2, inout Vector[] sAB, inout Vector[] sA, inout
 
         Vector v = e.v;
 
-        sAB ~= support(p1, p2, sA, sB, v);
+        Vector v1 = rBody1.support(e.v);
+        Vector v2 = rBody2.support(-e.v);
+
+        sA ~= v1; sB ~= v2;
+        sAB ~= v1 - v2;
 
         float vl = v.magnitude;
-
         float dot = v*sAB[sAB.length - 1] / vl;
-        close_enough = (dot - vl) <= EPSILON;
 
-        if (close_enough == false)
+        close_enough = (dot - vl) <= SIMPLEX_EPSILON;
+
+        if (!close_enough)
         {
             Entry e1 = constructEntry(e.y0, sAB[sAB.length - 1], e.p0, e.q0, sA[sA.length - 1], sB[sB.length - 1]);
 
@@ -236,8 +221,7 @@ Entry epa(Vector[] p1, Vector[] p2, inout Vector[] sAB, inout Vector[] sA, inout
             if (closest_is_internal(e2))
                 Qheap.append(e2);
         }
-    } while (close_enough == false && failSafe++ < 100);
-
+    } while (!close_enough && failSafe++ < 10);
     return e;
 }
 

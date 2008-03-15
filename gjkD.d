@@ -120,16 +120,13 @@ void keyReleased(int key)               // Controls
     case SDLK_SPACE:
         system.rb[1].vel.x = 0;
         system.rb[1].vel.y = 0;
-        system.rb[1].omega.z = 0;
-        system.rb[1].pos.x = 50;
-        system.rb[1].pos.y = 50;
-        system.rb[1].q.z = 0;
+        system.rb[1].omega = 0;
         break;
     case SDLK_RSHIFT:
-        system.rb[1].omega.z += 0.01;
+        system.rb[1].omega += 0.01;
         break;
     case SDLK_RETURN:
-        system.rb[1].omega.z -= 0.01;
+        system.rb[1].omega -= 0.01;
         break;
     case SDLK_d:
         system.rb[0].vel.x += 5;
@@ -144,18 +141,15 @@ void keyReleased(int key)               // Controls
         system.rb[0].vel.y -= 5;
         break;
     case SDLK_e:
-        system.rb[0].omega.z += 0.01;
+        system.rb[0].omega += 0.01;
         break;
     case SDLK_q:
-        system.rb[0].omega.z -= 0.01;
+        system.rb[0].omega -= 0.01;
         break;
     case SDLK_c:
         system.rb[0].vel.x = 0;
         system.rb[0].vel.y = 0;
-        system.rb[0].omega.z = 0;
-        system.rb[0].pos.x = 50;
-        system.rb[0].pos.y = 50;
-        system.rb[0].q.z = 0;
+        system.rb[0].omega = 0;
         break;
     case SDLK_LEFTBRACKET:
         if (system.shape1 == 4) system.shape1 = 1;
@@ -208,14 +202,14 @@ void drawScene()
 
     glColor3f(1,0,0);						                        // Red
 
-    foreach(int i, RigidBody b; system.rb)
+    foreach(int i, b; system.rb)
     {
         if (i == 1) glColor3f(0,1,0);				               // Green
 
         glBegin(GL_LINE_LOOP);					                    // Draw Polygon
         {
-            for (int j; j < b.V[0].length; j++)
-                glVertex2d(b.vertex[0][j].x, b.vertex[0][j].y);
+            foreach(v; b.vertex)
+                glVertex2d(v.x, v.y);
         }
         glEnd();
         glLoadIdentity();
@@ -229,7 +223,7 @@ void drawScene()
     glBegin(GL_LINE_STRIP);						                // Draw Minkowski Hull
     {
         int k = 0;
-        foreach(Vector m; system.minkHull)
+        foreach(m; system.minkHull)
         if (m.x != 0 && m.y != 0)
         {
             glVertex2d(m.x, m.y);
@@ -237,9 +231,6 @@ void drawScene()
         }
     }
     glEnd();
-
-    glLoadIdentity();
-    glTranslatef(50,50,0);
 
     glColor3f(1,0,0);						                        // Red
     glPointSize(10);

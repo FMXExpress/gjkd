@@ -23,81 +23,78 @@ module math;
 import tango.math.Math;
 import tango.util.collection.ArraySeq;
 
-const EPSILON = 0.00008f;
+const EPSILON = float.epsilon;
 
 struct Vector
 {
-    double x = 0f, y = 0f, z = 0f;
+    float x = 0f, y = 0f;
 
-    static Vector opCall(double ax, double ay, double az)
+    static Vector opCall(float ax, float ay)
     {
         Vector u;
         u.x = ax;
         u.y = ay;
-        u.z = az;
         return u;
     }
 
     void normalize()
     {
-        double m = magnitude();
+        float m = magnitude();
         x *= 1.0f/m;
         y *= 1.0f/m;
-        z *= 1.0f/m;
     }
 
     Vector opAdd(Vector u)
     {
-        return Vector(x + u.x, y + u.y, z + u.z);
+        return Vector(x + u.x, y + u.y);
     }
 
     void opAddAssign(Vector u)
     {
         x += u.x;
         y += u.y;
-        z += u.z;
     }
 
     void opSubAssign(Vector u)
     {
         x -= u.x;
         y -= u.y;
-        z -= u.z;
     }
 
     Vector opSub(Vector u)
     {
-        return Vector(x - u.x, y - u.y, z - u.z);
+        return Vector(x - u.x, y - u.y);
     }
 
-    real opMul(Vector u)			// Vector Dot Product
+    float opMul(Vector u)			// Vector Dot Product
     {
-        return(x*u.x + y*u.y + z*u.z);
+        return(x*u.x + y*u.y);
     }
 
-    Vector opMul(double s)			// Scaler Multiplication
+    Vector opMul(float s)			// Scaler Multiplication
     {
-        return Vector(x*s, y*s, z*s);
+        return Vector(x*s, y*s);
     }
 
-    Vector opXor(Vector u)
+    float opXor(Vector v)
     {
-        return Vector(y*u.z - z*u.y, -x*u.z + z*u.x, x*u.y - y*u.x);
+        return x * v.y - y * v.x;
     }
 
-    Vector opDiv(double s)
+    Vector opDiv(float s)
     {
-        return Vector(x/s, y/s, z/s);
+        return Vector(x/s, y/s);
     }
 
-    Vector neg()
+    // negation
+    Vector opNeg()
     {
-        return Vector(-x, -y, -z);
+        return Vector(-x, -y);
     }
 
-    real magnitude()
+    float magnitude()
     {
-        return sqrt(x*x + y*y + z*z);
+        return sqrt(x*x + y*y);
     }
 }
 
@@ -109,7 +106,7 @@ struct Entry
     Vector q0, q1;
     Vector v;
 
-    double key;
-    double t;
-    double s;
+    float key;
+    float t;
+    float s;
 }
