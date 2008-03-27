@@ -29,6 +29,7 @@ import collide;
 import chainHull;
 
 const SCALE = 5;            // Poltgon scale factor
+const CIRCLE_SEGS = 50;
 
 class RigidSys
 {
@@ -45,21 +46,17 @@ class RigidSys
 
     this(long MAXRB)
     {
-        penetrate = false;
         rb.length = MAXRB;
         rb[0] = new RigidBody(shape1);
         rb[1] = new RigidBody(shape2);
 
-        rb[0].pos.x = 40f;
-        rb[0].pos.y = 20f;
-        rb[0].vel.x = 0f;
-        rb[0].vel.y = 0f;
+        rb[0].pos = Vector(40.0f, 20.0f);
+        rb[0].vel = Vector(0.0f,0.0f);
+        rb[0].omega = 0.01;
 
-        rb[1].pos.x = 45f;
-        rb[1].pos.y = 50f;
-        rb[1].vel.x = -5f;
-        rb[1].vel.y = -5f;
-
+        rb[1].pos = Vector(40.0f, 40.0f);
+        rb[1].vel = Vector(0.1f,0.0f);
+        rb[1].omega = 0.01;
     }
 
     void update()								                                // Update Universe
@@ -78,7 +75,7 @@ class RigidSys
 
         penetrate = gjk(rb[0], rb[1], sAB, sA, sB, e);
 
-        if (penetrate == true)
+        if (penetrate)
             e = epa(rb[0], rb[1], sAB, sA, sB);
 
         cp1 = e.s * e.p0 + e.t * e.p1;
@@ -93,15 +90,8 @@ class RigidSys
 
     void spawn(int hull)							                            // Change Polygon Shape
     {
-        if (hull == 1)
-        {
-
-            rb[0].shape(shape1);
-        }
-        else
-        {
-            rb[1].shape(shape2);
-        }
+        if (hull == 1) rb[0].shape(shape1);
+        else rb[1].shape(shape2);
     }
 
     private void minkDiff()								                    // Calculate Minkowski Difference for display
@@ -111,11 +101,11 @@ class RigidSys
         mink.length = minkHull.length = scale;
 
         int i = 0;
-        foreach(rb1; rb[0].vertex)
-            foreach(rb2; rb[1].vertex)
+        foreach(rb1; rb[1].vertex)
+            foreach(rb2; rb[0].vertex)
             {
-                minkSum[i][0] = rb1.x - rb2.x;
-                minkSum[i++][1] = rb1.y - rb2.y;
+                minkSum[i][0] = rb2.x - rb1.x;
+                minkSum[i++][1] = rb2.y - rb1.y;
             }
 
         sort(minkSum);
@@ -135,36 +125,38 @@ class RigidSys
 
         chainHull_2D(mink,minkHull);					            // Find Minkowski Hull
     }
+
 }
 
 private class RigidBody
 {
+
     Vector[] V;
     Vector[] vertex;
 
     // State variables
     Vector pos;					// Position of center of mass
-    float q;					// rotation
+    float q;					// Rotation position
 
     // Derived quantities (auxiliary variables)
     Vector vel;					// linear velocity
     float omega;				// angular velocity
 
-    // Computed quantities
-    Vector collisionPoint;
+    int type;
 
-    float degrees;
+    float radius;
 
     this(int s)
     {
-        q = 0.1f;
-        omega = 0.01f;
-        shape(s);
-        update(1.0f/60.0f);
+        type = s;
+        shape(type);
+        q = 0.0001f;
+        transform();
     }
 
     void shape(int hull)
     {
+        type = hull;
         switch (hull)
         {
         case 1:		// Triangle
@@ -214,6 +206,26 @@ private class RigidBody
             vertex.length = V.length;
             break;
         }
+        case CIRCLE_SEGS:		// Circle
+        {
+            radius = 1.5;
+            V = null;
+            vertex = null;
+
+            int segs = CIRCLE_SEGS;
+            Vector c = pos;
+            float r = radius;
+            float coef = 2.0*PI/segs;
+
+            for(int n = 0; n <= segs; n++)
+            {
+                float rads = n*coef;
+                V ~= Vector(r*cos(rads), r*sin(rads));
+            }
+            vertex.length = V.length;
+
+            break;
+        }
         }
     }
 
@@ -222,6 +234,7 @@ private class RigidBody
         pos.x += vel.x*dt;
         pos.y += vel.y*dt;
         q += omega*dt;
+
         transform();
     }
 
@@ -246,17 +259,30 @@ private class RigidBody
     Vector support(Vector n)
     {
         Vector r;
-        int i = vertex.length-1;
-        r = vertex[i--];
-        while (i>=0)
+
+        if(type == 5)
         {
-            if ( (vertex[i] - r) * n >= 0 )
+            r = radius * n.getNormal();
+            r = r + pos;
+        }
+        else
+        {
+            int i = vertex.length-1;
+            r = vertex[i--];
+            while (i>=0)
             {
-                r = vertex[i];
+                if ( (vertex[i] - r) * n >= 0 )
+                {
+                    r = vertex[i];
+                }
+                i--;
             }
-            i--;
         }
         return r;
     }
-}
 
+    Vector getCenter()
+    {
+        return pos;
+    }
+}
