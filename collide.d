@@ -26,7 +26,7 @@ import tango.math.Math;
 import math;
 import gjkSys;
 
-const SIMPLEX_EPSILON = 0.1f;
+const SIMPLEX_EPSILON = 2f;
 
 // The Gilbert-Johnson-Keerthi algorithm
 
@@ -55,14 +55,14 @@ bool gjk(RigidBody rBody1, RigidBody rBody2, inout Vector[] sAB, inout Vector[] 
         if (sAB.length == 2)
         {
             e = constructEntry(sAB[0], sAB[1], sA[0], sB[0], sA[1], sB[1]);
-            if (e.key < 0.1) penetrate = true;
         }
         /// Triangle Test
         else e = pointTriangle(sAB, sA, sB, penetrate);
 
         if (penetrate) return true;
     }
-    return false;
+    // This should never happen... ;-)
+    assert(0);
 }
 
 ///

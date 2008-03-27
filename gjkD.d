@@ -152,12 +152,14 @@ void keyReleased(int key)               // Controls
         system.rb[0].omega = 0;
         break;
     case SDLK_LEFTBRACKET:
-        if (system.shape1 == 4) system.shape1 = 1;
+        if (system.shape1 == CIRCLE_SEGS) system.shape1 = 1;
+        else if(system.shape1 == 4) system.shape1 = CIRCLE_SEGS;
         else system.shape1++;
         system.spawn(1);
         break;
     case SDLK_RIGHTBRACKET:
-        if (system.shape2 == 4) system.shape2 = 1;
+        if (system.shape2 == CIRCLE_SEGS) system.shape2 = 1;
+        else if(system.shape2 == 4) system.shape2 = CIRCLE_SEGS;
         else system.shape2++;
         system.spawn(2);
         break;
@@ -274,5 +276,5 @@ void createGLWindow(char[] title, int width, int height, int bits, bool fullScre
 
 char[] getSDLError()
 {
-    return fromUtf8z(SDL_GetError());
+    return fromStringz(SDL_GetError());
 }

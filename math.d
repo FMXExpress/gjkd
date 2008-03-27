@@ -44,6 +44,12 @@ struct Vector
         y *= 1.0f/m;
     }
 
+    Vector getNormal()
+    {
+        float m = magnitude();
+        return Vector(1.0f/m,1.0f/m);
+    }
+
     Vector opAdd(Vector u)
     {
         return Vector(x + u.x, y + u.y);
