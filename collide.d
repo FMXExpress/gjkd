@@ -26,14 +26,14 @@ import tango.math.Math;
 import math;
 import gjkSys;
 
-const SIMPLEX_EPSILON = 2f;
+const SIMPLEX_EPSILON = 0.01f;
 
 // The Gilbert-Johnson-Keerthi algorithm
 
 bool gjk(RigidBody rBody1, RigidBody rBody2, inout Vector[] sAB, inout Vector[] sA, inout Vector[] sB, inout Entry e)
 {
-    sA  ~= rBody1.vertex[1];
-    sB  ~= rBody2.vertex[0];
+    sA  ~= rBody1.coldStartGjk(rBody2.pos);
+    sB  ~= rBody2.coldStartGjk(rBody1.pos);
     sAB ~= (sA[0] - sB[0]);
 
     e = constructEntry(sAB[0], sAB[0], sA[0], sB[0], sA[0], sB[0]);
@@ -41,7 +41,7 @@ bool gjk(RigidBody rBody1, RigidBody rBody2, inout Vector[] sAB, inout Vector[] 
     bool penetrate;
     int  failsafe;
 
-    while (failsafe++ < 10)       /// Don't want to get caught in an infinite loop!
+    while (failsafe++ < 20)       /// Don't want to get caught in an infinite loop!
     {
         Vector v1 = rBody1.support(-e.v);
         Vector v2 = rBody2.support(e.v);
@@ -49,7 +49,7 @@ bool gjk(RigidBody rBody1, RigidBody rBody2, inout Vector[] sAB, inout Vector[] 
         sA ~= v1; sB ~= v2;
         sAB ~= v1 - v2;
 
-        if ((e.v*e.v) - e.v*sAB[sAB.length - 1] < SIMPLEX_EPSILON) return false;
+        if (e.v*e.v - e.v*sAB[sAB.length - 1] < SIMPLEX_EPSILON) return false;
 
         /// Line Test
         if (sAB.length == 2)
@@ -62,7 +62,7 @@ bool gjk(RigidBody rBody1, RigidBody rBody2, inout Vector[] sAB, inout Vector[] 
         if (penetrate) return true;
     }
     // This should never happen... ;-)
-    assert(0);
+    return false;
 }
 
 ///
