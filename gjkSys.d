@@ -29,7 +29,7 @@ import collide;
 import chainHull;
 
 const SCALE = 5;            // Poltgon scale factor
-const CIRCLE_SEGS = 50;
+const CIRCLE_SEGS = 25;
 
 class RigidSys
 {
@@ -40,7 +40,7 @@ class RigidSys
     Vector cp1,cp2;
 
     int shape1 = 1;			// Polygon #1 shape
-    int shape2 = 1;			// Polygon #2 shape
+    int shape2 = 5;			// Polygon #2 shape
     float[][] minkSum;
     bool penetrate;
 
@@ -206,7 +206,7 @@ private class RigidBody
             vertex.length = V.length;
             break;
         }
-        case CIRCLE_SEGS:		// Circle
+        case 5:		// Circle
         {
             radius = 1.5;
             V = null;
@@ -259,10 +259,9 @@ private class RigidBody
     Vector support(Vector n)
     {
         Vector r;
-
         if(type == 5)
         {
-            r = radius * n.getNormal();
+            r = radius * n.getNormal * SCALE;
             r = r + pos;
         }
         else
@@ -279,6 +278,18 @@ private class RigidBody
             }
         }
         return r;
+    }
+
+    Vector coldStartGjk(Vector p)
+    {
+        if(type == 5)
+        {
+            return support(p);
+        }
+        else
+        {
+            return vertex[0];
+        }
     }
 
     Vector getCenter()

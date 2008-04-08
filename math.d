@@ -47,7 +47,7 @@ struct Vector
     Vector getNormal()
     {
         float m = magnitude();
-        return Vector(1.0f/m,1.0f/m);
+        return Vector(x/m,y/m);
     }
 
     Vector opAdd(Vector u)
